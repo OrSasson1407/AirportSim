@@ -1,0 +1,11 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:AirportSim.Client.Views"
+        x:Class="AirportSim.Client.Views.MainWindow"
+        Title="Airport ATC Simulator"
+        Width="1200" Height="600"
+        WindowStartupLocation="CenterScreen">
+    
+    <views:SimulationView x:Name="MainSimView" />
+
+</Window>

@@ -1,0 +1,25 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rendering="clr-namespace:AirportSim.Client.Rendering"
+             x:Class="AirportSim.Client.Views.SimulationView">
+    
+    <Grid RowDefinitions="*, Auto">
+        <rendering:AirportCanvas x:Name="SimCanvas" Grid.Row="0" />
+        
+        <Border Grid.Row="1" Background="#222" Padding="10">
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                    <Button Content="1x Speed" Click="Speed1x_Click" Background="#444" Foreground="White"/>
+                    <Button Content="60x Speed" Click="Speed60x_Click" Background="#444" Foreground="White"/>
+                    <Button Content="Pause/Resume" Click="Pause_Click" Background="#444" Foreground="White"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20">
+                    <TextBlock x:Name="StatusText" Foreground="White" VerticalAlignment="Center" Text="Connecting to Server..." />
+                    <TextBlock x:Name="TimeText" Foreground="Cyan" VerticalAlignment="Center" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>
