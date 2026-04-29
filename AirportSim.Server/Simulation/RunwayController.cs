@@ -17,6 +17,9 @@ namespace AirportSim.Server.Simulation
 
         public readonly List<string> PendingAlerts = new();
 
+        // NEW: Weather closure flag
+        public bool IsClosedForWeather { get; private set; }
+
         // ── Public read access ────────────────────────────────────────────────
 
         public RunwayStatus ArrivalStatus   => _arrivalRunway.Status;
@@ -32,10 +35,21 @@ namespace AirportSim.Server.Simulation
             _departureRunway.ToSnapshot()
         };
 
+        // ── Weather Control ───────────────────────────────────────────────────
+
+        public void SetWeatherClosure(bool isClosed)
+        {
+            IsClosedForWeather = isClosed;
+        }
+
         // ── Arrival runway ────────────────────────────────────────────────────
 
         public bool TryOccupyArrival(string flightId)
-            => _arrivalRunway.TryOccupy(flightId);
+        {
+            // Reject clearances if runway is closed for weather
+            if (IsClosedForWeather) return false;
+            return _arrivalRunway.TryOccupy(flightId);
+        }
 
         public void ReleaseArrival(string flightId)
             => _arrivalRunway.Release(flightId);
@@ -43,7 +57,11 @@ namespace AirportSim.Server.Simulation
         // ── Departure runway ──────────────────────────────────────────────────
 
         public bool TryOccupyDeparture(string flightId)
-            => _departureRunway.TryOccupy(flightId);
+        {
+            // Reject clearances if runway is closed for weather
+            if (IsClosedForWeather) return false;
+            return _departureRunway.TryOccupy(flightId);
+        }
 
         public void ReleaseDeparture(string flightId)
             => _departureRunway.Release(flightId);

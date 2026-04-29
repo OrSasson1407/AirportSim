@@ -13,6 +13,9 @@ namespace AirportSim.Server.Simulation
 
         public double GoAroundChance { get; set; } = 0.08;
         public bool IsFinished { get; private set; }
+        
+        // NEW: Expose if the last go-around was forced by weather minimums
+        public bool LastGoAroundWasWeatherForced { get; private set; }
 
         public Aircraft(FlightEvent flightEvent)
         {
@@ -35,7 +38,8 @@ namespace AirportSim.Server.Simulation
             UpdatePositionAndHeading();
         }
 
-        public void Tick(double simDeltaMs, RunwayController runway)
+        // NEW: Passing WeatherCondition into Tick
+        public void Tick(double simDeltaMs, RunwayController runway, WeatherCondition currentWeather)
         {
             if (IsFinished) return;
 
@@ -43,7 +47,7 @@ namespace AirportSim.Server.Simulation
             if (State.Phase == AircraftPhase.Holding)
             {
                 if (runway.TryOccupyDeparture(State.FlightId))
-                    AdvancePhase();
+                    AdvancePhase(runway, currentWeather);
                 return;
             }
 
@@ -68,6 +72,7 @@ namespace AirportSim.Server.Simulation
                     State.Status          = AircraftStatus.Normal;
                     _timeInCurrentPhaseMs = 0;
                     State.PhaseProgress   = 0;
+                    LastGoAroundWasWeatherForced = false; // Reset the flag
                     SetPhaseDuration();
                 }
                 return;
@@ -82,7 +87,7 @@ namespace AirportSim.Server.Simulation
             UpdateAltitudeAndSpeed();
 
             if (State.PhaseProgress >= 1.0)
-                AdvancePhase(runway);
+                AdvancePhase(runway, currentWeather);
         }
 
         public void DeclareEmergency()
@@ -93,10 +98,10 @@ namespace AirportSim.Server.Simulation
 
         // ── Phase transitions ─────────────────────────────────────────────────
 
-        private void AdvancePhase(RunwayController? runway = null)
+        private void AdvancePhase(RunwayController? runway, WeatherCondition weather)
         {
             if (State.FlightType == FlightType.Arrival)
-                AdvanceArrivalPhase(runway);
+                AdvanceArrivalPhase(runway, weather);
             else
                 AdvanceDeparturePhase(runway);
 
@@ -105,7 +110,7 @@ namespace AirportSim.Server.Simulation
             SetPhaseDuration();
         }
 
-        private void AdvanceArrivalPhase(RunwayController? runway)
+        private void AdvanceArrivalPhase(RunwayController? runway, WeatherCondition weather)
         {
             switch (State.Phase)
             {
@@ -114,12 +119,21 @@ namespace AirportSim.Server.Simulation
                     break;
 
                 case AircraftPhase.OnFinal:
-                    if (State.GoAroundCount < 2 && _rand.NextDouble() < GoAroundChance)
+                    
+                    // NEW: VISIBILITY CHECKS
+                    bool isLowVisibility = (weather == WeatherCondition.Fog || weather == WeatherCondition.Storm);
+                    bool isCat3Equipped = (State.Type == AircraftType.Large); // Only Large are CAT III
+                    
+                    bool forcedByWeather = isLowVisibility && !isCat3Equipped;
+                    double actualGoAroundChance = forcedByWeather ? 1.0 : GoAroundChance;
+
+                    if (State.GoAroundCount < 2 && _rand.NextDouble() < actualGoAroundChance)
                     {
                         runway?.ReleaseArrival(State.FlightId);
                         State.Phase         = AircraftPhase.GoAround;
                         State.Status        = AircraftStatus.GoAround;
                         State.GoAroundCount++;
+                        LastGoAroundWasWeatherForced = forcedByWeather;
                     }
                     else
                     {

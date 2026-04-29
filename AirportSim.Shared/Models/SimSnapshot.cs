@@ -18,11 +18,9 @@ namespace AirportSim.Shared.Models
         public double   TimeScale     { get; set; }
         public bool     IsPaused      { get; set; }
 
-        // Runways — replaces single RunwayStatus
+        // Runways
         public List<RunwaySnapshot> Runways { get; set; } = new();
 
-        // Keep legacy property so the client status bar compiles unchanged
-        // (true if either runway is occupied)
         public RunwayStatus RunwayStatus =>
             Runways.Exists(r => r.Status == RunwayStatus.Occupied)
                 ? RunwayStatus.Occupied
@@ -36,6 +34,13 @@ namespace AirportSim.Shared.Models
 
         // Weather
         public WeatherCondition Weather { get; set; } = WeatherCondition.Clear;
+
+        // Weather transition tracking
+        public WeatherCondition PreviousWeather { get; set; } = WeatherCondition.Clear;
+        public double WeatherTransitionProgress { get; set; } = 1.0; // 0.0 to 1.0
+
+        // NEW: Microburst / Wind shear state
+        public bool IsWindShearActive { get; set; }
 
         // Alert log (last 5 events, newest first)
         public List<string> RecentAlerts { get; set; } = new();

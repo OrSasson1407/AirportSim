@@ -8,7 +8,6 @@ namespace AirportSim.Server.Simulation
         public double   TimeScale    { get; private set; } = 60.0;
         public bool     IsPaused     { get; set; }         = false;
 
-        // NEW: available speed presets exposed to the hub
         public static readonly double[] SpeedPresets = { 1.0, 10.0, 30.0, 60.0, 120.0, 300.0 };
 
         public SimClock(DateTime startTime)
@@ -22,14 +21,12 @@ namespace AirportSim.Server.Simulation
             SimulatedNow = SimulatedNow.AddMilliseconds(realDeltaMs * TimeScale);
         }
 
-        // NEW: clamps to valid preset range; returns actual scale applied
         public double SetTimeScale(double requested)
         {
             TimeScale = Math.Clamp(requested, SpeedPresets[0], SpeedPresets[^1]);
             return TimeScale;
         }
 
-        // NEW: step to the next faster preset
         public double StepUp()
         {
             foreach (var p in SpeedPresets)
@@ -37,7 +34,6 @@ namespace AirportSim.Server.Simulation
             return TimeScale;
         }
 
-        // NEW: step to the next slower preset
         public double StepDown()
         {
             for (int i = SpeedPresets.Length - 1; i >= 0; i--)
@@ -45,7 +41,6 @@ namespace AirportSim.Server.Simulation
             return TimeScale;
         }
 
-        // NEW: simulated time-of-day helpers used by renderers and weather
         public bool IsNight  => SimulatedNow.Hour >= 19 || SimulatedNow.Hour < 5;
         public bool IsDawn   => SimulatedNow.Hour == 5;
         public bool IsDusk   => SimulatedNow.Hour == 18;
