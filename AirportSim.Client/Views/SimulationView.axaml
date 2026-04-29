@@ -3,12 +3,81 @@
              xmlns:rendering="clr-namespace:AirportSim.Client.Rendering"
              x:Class="AirportSim.Client.Views.SimulationView">
 
-    <Grid RowDefinitions="*, Auto">
+    <UserControl.Styles>
+        <Style Selector="Button.SidebarBtn">
+            <Setter Property="Background" Value="#1E2A38"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="10,8"/>
+        </Style>
+        <Style Selector="Button.SidebarBtn:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#2A3A4A"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Grid ColumnDefinitions="260, *" RowDefinitions="*, Auto">
 
         <!-- ═══════════════════════════════════════════════════════════════ -->
-        <!-- ROW 0 — Main canvas + overlays                                  -->
+        <!-- COLUMN 0 — Sidebar Navigation & Controls                        -->
         <!-- ═══════════════════════════════════════════════════════════════ -->
-        <Grid Grid.Row="0">
+        <Border Grid.Column="0" Grid.Row="0" Grid.RowSpan="2"
+                Background="#131720"
+                BorderBrush="#252B36"
+                BorderThickness="0,0,1,0"
+                Padding="16,20">
+            <StackPanel Spacing="12">
+                
+                <!-- Branding Header -->
+                <TextBlock Text="ATC TERMINAL" FontSize="18" FontWeight="Black" Foreground="{DynamicResource AtcPrimary}" LetterSpacing="2"/>
+                <TextBlock Text="SIMULATION SYSTEM" FontSize="10" Foreground="{DynamicResource AtcTextMuted}" Margin="0,-8,0,16"/>
+
+                <!-- Time & Weather Widget -->
+                <Border Background="#0A0D12" CornerRadius="8" Padding="12" BorderBrush="#252B36" BorderThickness="1">
+                    <StackPanel>
+                        <TextBlock Text="LOCAL TIME" FontSize="10" Foreground="{DynamicResource AtcTextMuted}"/>
+                        <TextBlock x:Name="TimeText" Foreground="#FFFFFF" FontSize="24" FontWeight="Bold" Margin="0,2,0,8"/>
+                        <TextBlock x:Name="WeatherText" Foreground="{DynamicResource AtcPrimary}" FontSize="12" FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Height="1" Background="#252B36" Margin="0,8"/>
+
+                <!-- Playback Controls -->
+                <TextBlock Text="PLAYBACK SPEED" FontSize="10" Foreground="{DynamicResource AtcTextMuted}" FontWeight="Bold"/>
+                <Grid ColumnDefinitions="*,*,*,*">
+                    <Button Grid.Column="0" Content="«" Click="SpeedDown_Click" Classes="SidebarBtn" ToolTip.Tip="Speed Down" Margin="0,0,2,0"/>
+                    <Button Grid.Column="1" Content="1×" Click="Speed1x_Click" Classes="SidebarBtn" Margin="2,0"/>
+                    <Button Grid.Column="2" Content="60×" Click="Speed60x_Click" Classes="SidebarBtn" Margin="2,0"/>
+                    <Button Grid.Column="3" Content="»" Click="SpeedUp_Click" Classes="SidebarBtn" ToolTip.Tip="Speed Up" Margin="2,0,0,0"/>
+                </Grid>
+                
+                <Button x:Name="PauseButton" Content="⏸ PAUSE SIMULATION" Click="Pause_Click" 
+                        Background="#283545" Foreground="White" CornerRadius="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="10,8"/>
+
+                <Border Height="1" Background="#252B36" Margin="0,8"/>
+
+                <!-- Overlays -->
+                <TextBlock Text="MAP OVERLAYS" FontSize="10" Foreground="{DynamicResource AtcTextMuted}" FontWeight="Bold"/>
+                <Button x:Name="ToggleRadarButton" Content="📡 Radar View" Click="ToggleRadar_Click" Classes="SidebarBtn"/>
+                <Button x:Name="ToggleQueueButton" Content="☰ Flight Queue" Click="ToggleQueue_Click" Classes="SidebarBtn"/>
+                <Button x:Name="ToggleAlertsButton" Content="🔔 System Alerts" Click="ToggleAlerts_Click" Classes="SidebarBtn"/>
+                <Button x:Name="ToggleDashboardButton" Content="📊 Live Dashboard" Click="ToggleDashboard_Click" Classes="SidebarBtn"/>
+
+                <Border Height="1" Background="#252B36" Margin="0,8"/>
+
+                <!-- Environmental Controls -->
+                <Button Content="🌤 Refresh Weather" Click="Weather_Click" Classes="SidebarBtn"/>
+                <Button Content="🚨 TRIGGER EMERGENCY" Click="Emergency_Click"
+                        Background="#4A1010" Foreground="#FF5555" CornerRadius="6" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="10,12" Margin="0,8,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- COLUMN 1 — Main Canvas & Floating Panels                        -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Column="1" Grid.Row="0">
 
             <!-- Simulation canvas (bottom layer) -->
             <rendering:AirportCanvas x:Name="SimCanvas" />
@@ -17,48 +86,27 @@
             <Border x:Name="AlertPanel"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Top"
-                    Margin="0,8,8,0"
-                    Width="290"
-                    MaxHeight="220"
-                    Background="#CC0A0C14"
-                    CornerRadius="6"
+                    Margin="0,16,16,0"
+                    Width="300"
+                    MaxHeight="250"
+                    Background="{DynamicResource AtcGlass}"
+                    BorderBrush="{DynamicResource AtcBorderLine}"
+                    BorderThickness="1"
+                    CornerRadius="8"
                     IsVisible="False">
                 <Grid RowDefinitions="Auto, *">
-                    <Border Grid.Row="0"
-                            Background="#331A1C28"
-                            CornerRadius="6,6,0,0"
-                            Padding="10,5">
+                    <Border Grid.Row="0" Background="#33000000" CornerRadius="8,8,0,0" Padding="12,8">
                         <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Grid.Column="0"
-                                       Text="ALERTS"
-                                       FontSize="10"
-                                       FontWeight="Bold"
-                                       Foreground="#88AABBCC"
-                                       LetterSpacing="2"/>
-                            <Button Grid.Column="1"
-                                    x:Name="ClearAlertsButton"
-                                    Content="✕"
-                                    FontSize="10"
-                                    Foreground="#88AABBCC"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Padding="4,0"
-                                    Click="ClearAlerts_Click"/>
+                            <TextBlock Grid.Column="0" Text="SYSTEM ALERTS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AtcPrimary}" LetterSpacing="1.5" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" x:Name="ClearAlertsButton" Content="✕" FontSize="12" Foreground="{DynamicResource AtcTextMuted}" Background="Transparent" BorderThickness="0" Padding="4,0" Click="ClearAlerts_Click"/>
                         </Grid>
                     </Border>
-                    <ScrollViewer Grid.Row="1"
-                                  x:Name="AlertScroller"
-                                  VerticalScrollBarVisibility="Auto">
-                        <ItemsControl x:Name="AlertList" Margin="0">
+                    <ScrollViewer Grid.Row="1" x:Name="AlertScroller" VerticalScrollBarVisibility="Auto" Padding="0,4">
+                        <ItemsControl x:Name="AlertList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Padding="10,4"
-                                            BorderThickness="0,0,0,1"
-                                            BorderBrush="#22FFFFFF">
-                                        <TextBlock Text="{Binding}"
-                                                   FontSize="11"
-                                                   Foreground="#CCFFFFFF"
-                                                   TextWrapping="Wrap"/>
+                                    <Border Padding="12,8" BorderThickness="0,0,0,1" BorderBrush="#1AFFFFFF">
+                                        <TextBlock Text="{Binding}" FontSize="12" Foreground="White" TextWrapping="Wrap"/>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -71,32 +119,22 @@
             <Border x:Name="QueuePanel"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Top"
-                    Margin="8,8,0,0"
-                    Width="230"
-                    Background="#CC0A0C14"
-                    CornerRadius="6"
+                    Margin="16,16,0,0"
+                    Width="240"
+                    Background="{DynamicResource AtcGlass}"
+                    BorderBrush="{DynamicResource AtcBorderLine}"
+                    BorderThickness="1"
+                    CornerRadius="8"
                     IsVisible="False">
                 <Grid RowDefinitions="Auto, *">
-                    <Border Grid.Row="0"
-                            Background="#331A1C28"
-                            CornerRadius="6,6,0,0"
-                            Padding="10,5">
-                        <TextBlock Text="NEXT FLIGHTS"
-                                   FontSize="10"
-                                   FontWeight="Bold"
-                                   Foreground="#88AABBCC"
-                                   LetterSpacing="2"/>
+                    <Border Grid.Row="0" Background="#33000000" CornerRadius="8,8,0,0" Padding="12,8">
+                        <TextBlock Text="NEXT FLIGHTS" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AtcPrimary}" LetterSpacing="1.5"/>
                     </Border>
                     <ItemsControl Grid.Row="1" x:Name="QueueList">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Padding="10,5"
-                                        BorderThickness="0,0,0,1"
-                                        BorderBrush="#22FFFFFF">
-                                    <TextBlock Text="{Binding}"
-                                               FontSize="11"
-                                               Foreground="#CCFFFFFF"
-                                               FontFamily="Courier New"/>
+                                <Border Padding="12,8" BorderThickness="0,0,0,1" BorderBrush="#1AFFFFFF">
+                                    <TextBlock Text="{Binding}" FontSize="12" Foreground="White" FontFamily="Consolas"/>
                                 </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
@@ -104,60 +142,39 @@
                 </Grid>
             </Border>
 
-            <!-- ── Emergency banner (centre top, hidden until needed) ── -->
+            <!-- ── Emergency banner (centre top) ── -->
             <Border x:Name="EmergencyBanner"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Top"
-                    Margin="0,8,0,0"
-                    Padding="18,7"
-                    Background="#EE8B0000"
-                    CornerRadius="5"
+                    Margin="0,16,0,0"
+                    Padding="24,10"
+                    Background="#D9D32F2F"
+                    CornerRadius="8"
                     IsVisible="False">
-                <TextBlock x:Name="EmergencyText"
-                           FontSize="13"
-                           FontWeight="Bold"
-                           Foreground="White"
-                           Text="🚨 EMERGENCY"
-                           HorizontalAlignment="Center"/>
+                <TextBlock x:Name="EmergencyText" FontSize="14" FontWeight="Bold" Foreground="White" Text="🚨 EMERGENCY DETECTED" HorizontalAlignment="Center"/>
             </Border>
 
-            <!-- ── NEW: Aircraft Info Popover (bottom-left overlay) ── -->
+            <!-- ── Aircraft Info Popover (bottom-left overlay) ── -->
             <Border x:Name="AircraftInfoPanel"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Bottom"
-                    Margin="8,0,0,8"
-                    Width="220"
-                    Background="#EE0A0C18"
-                    CornerRadius="6"
+                    Margin="16,0,0,16"
+                    Width="240"
+                    Background="{DynamicResource AtcGlass}"
                     BorderThickness="1"
-                    BorderBrush="#44FFFFFF"
+                    BorderBrush="{DynamicResource AtcBorderLine}"
+                    CornerRadius="8"
                     IsVisible="False">
                 <Grid RowDefinitions="Auto, Auto">
-                    <Border Grid.Row="0" Background="#331A1C28" CornerRadius="5,5,0,0" Padding="10,6">
-                        <TextBlock x:Name="InfoFlightId" Text="FLIGHT ID" FontSize="14" FontWeight="Bold" Foreground="#4CAF50"/>
+                    <Border Grid.Row="0" Background="#33000000" CornerRadius="8,8,0,0" Padding="12,8">
+                        <TextBlock x:Name="InfoFlightId" Text="FLIGHT ID" FontSize="15" FontWeight="Bold" Foreground="#4CAF50"/>
                     </Border>
-                    <!-- FIX APPLIED HERE: Changed Padding="10" to Margin="10" -->
-                    <StackPanel Grid.Row="1" Margin="10" Spacing="6">
-                        <Grid ColumnDefinitions="*, *">
-                            <TextBlock Text="TYPE:" FontSize="10" Foreground="#88AABBCC"/>
-                            <TextBlock x:Name="InfoType" Grid.Column="1" Text="-" FontSize="11" Foreground="White" HorizontalAlignment="Right"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*, *">
-                            <TextBlock Text="PHASE:" FontSize="10" Foreground="#88AABBCC"/>
-                            <TextBlock x:Name="InfoPhase" Grid.Column="1" Text="-" FontSize="11" Foreground="White" HorizontalAlignment="Right"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*, *">
-                            <TextBlock Text="ALTITUDE:" FontSize="10" Foreground="#88AABBCC"/>
-                            <TextBlock x:Name="InfoAlt" Grid.Column="1" Text="-" FontSize="11" Foreground="White" HorizontalAlignment="Right"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*, *">
-                            <TextBlock Text="SPEED:" FontSize="10" Foreground="#88AABBCC"/>
-                            <TextBlock x:Name="InfoSpeed" Grid.Column="1" Text="-" FontSize="11" Foreground="White" HorizontalAlignment="Right"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*, *">
-                            <TextBlock Text="GATE:" FontSize="10" Foreground="#88AABBCC"/>
-                            <TextBlock x:Name="InfoGate" Grid.Column="1" Text="-" FontSize="11" Foreground="White" HorizontalAlignment="Right"/>
-                        </Grid>
+                    <StackPanel Grid.Row="1" Margin="12,12,12,16" Spacing="8">
+                        <Grid ColumnDefinitions="*, *"><TextBlock Text="TYPE:" FontSize="11" Foreground="{DynamicResource AtcTextMuted}"/><TextBlock x:Name="InfoType" Grid.Column="1" Text="-" FontSize="12" Foreground="White" HorizontalAlignment="Right" FontWeight="SemiBold"/></Grid>
+                        <Grid ColumnDefinitions="*, *"><TextBlock Text="PHASE:" FontSize="11" Foreground="{DynamicResource AtcTextMuted}"/><TextBlock x:Name="InfoPhase" Grid.Column="1" Text="-" FontSize="12" Foreground="White" HorizontalAlignment="Right" FontWeight="SemiBold"/></Grid>
+                        <Grid ColumnDefinitions="*, *"><TextBlock Text="ALTITUDE:" FontSize="11" Foreground="{DynamicResource AtcTextMuted}"/><TextBlock x:Name="InfoAlt" Grid.Column="1" Text="-" FontSize="12" Foreground="White" HorizontalAlignment="Right" FontWeight="SemiBold"/></Grid>
+                        <Grid ColumnDefinitions="*, *"><TextBlock Text="SPEED:" FontSize="11" Foreground="{DynamicResource AtcTextMuted}"/><TextBlock x:Name="InfoSpeed" Grid.Column="1" Text="-" FontSize="12" Foreground="White" HorizontalAlignment="Right" FontWeight="SemiBold"/></Grid>
+                        <Grid ColumnDefinitions="*, *"><TextBlock Text="GATE:" FontSize="11" Foreground="{DynamicResource AtcTextMuted}"/><TextBlock x:Name="InfoGate" Grid.Column="1" Text="-" FontSize="12" Foreground="White" HorizontalAlignment="Right" FontWeight="SemiBold"/></Grid>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -166,208 +183,79 @@
             <Border x:Name="DashboardPanel"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Bottom"
-                    Margin="0,0,8,8"
-                    Width="340"
-                    Background="#EE0A0C18"
-                    CornerRadius="6"
+                    Margin="0,0,16,16"
+                    Width="360"
+                    Background="{DynamicResource AtcGlass}"
+                    BorderThickness="1"
+                    BorderBrush="{DynamicResource AtcBorderLine}"
+                    CornerRadius="8"
                     IsVisible="False">
                 <Grid RowDefinitions="Auto, Auto, Auto, Auto">
-
-                    <!-- Header -->
-                    <Border Grid.Row="0"
-                            Background="#331A1C28"
-                            CornerRadius="6,6,0,0"
-                            Padding="10,6">
+                    <Border Grid.Row="0" Background="#33000000" CornerRadius="8,8,0,0" Padding="12,8">
                         <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Grid.Column="0"
-                                       Text="LIVE STATS DASHBOARD"
-                                       FontSize="10"
-                                       FontWeight="Bold"
-                                       Foreground="#88AABBCC"
-                                       LetterSpacing="2"/>
-                            <Button Grid.Column="1"
-                                    Content="✕"
-                                    FontSize="10"
-                                    Foreground="#88AABBCC"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Padding="4,0"
-                                    Click="ToggleDashboard_Click"/>
+                            <TextBlock Grid.Column="0" Text="LIVE STATS DASHBOARD" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AtcPrimary}" LetterSpacing="1.5" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="✕" FontSize="12" Foreground="{DynamicResource AtcTextMuted}" Background="Transparent" BorderThickness="0" Padding="4,0" Click="ToggleDashboard_Click"/>
                         </Grid>
                     </Border>
-
-                    <!-- Traffic graph section -->
-                    <Border Grid.Row="1" Padding="10,8,10,4">
+                    <!-- Traffic graph -->
+                    <Border Grid.Row="1" Padding="12,12,12,6">
                         <Grid RowDefinitions="Auto, Auto">
-                            <TextBlock Grid.Row="0"
-                                       Text="TRAFFIC (last 10 min)"
-                                       FontSize="9"
-                                       Foreground="#66AABBCC"
-                                       FontWeight="Bold"
-                                       LetterSpacing="1"
-                                       Margin="0,0,0,4"/>
-                            <Canvas x:Name="TrafficGraphCanvas"
-                                    Grid.Row="1"
-                                    Height="60"
-                                    Background="#110A0C18"
-                                    ClipToBounds="True"/>
+                            <TextBlock Grid.Row="0" Text="TRAFFIC VOLUME (LAST 10 MIN)" FontSize="10" Foreground="{DynamicResource AtcTextMuted}" FontWeight="Bold" Margin="0,0,0,6"/>
+                            <Canvas x:Name="TrafficGraphCanvas" Grid.Row="1" Height="65" Background="#1A000000" ClipToBounds="True"/>
                         </Grid>
                     </Border>
-
-                    <!-- Go-around rate by weather -->
-                    <Border Grid.Row="2"
-                            Padding="10,4,10,4"
-                            BorderThickness="0,1,0,1"
-                            BorderBrush="#22FFFFFF">
+                    <!-- Go-around rate -->
+                    <Border Grid.Row="2" Padding="12,6,12,6" BorderThickness="0,1,0,1" BorderBrush="#1AFFFFFF">
                         <Grid RowDefinitions="Auto, Auto">
-                            <TextBlock Grid.Row="0"
-                                       Text="GO-AROUNDS BY WEATHER"
-                                       FontSize="9"
-                                       Foreground="#66AABBCC"
-                                       FontWeight="Bold"
-                                       LetterSpacing="1"
-                                       Margin="0,0,0,4"/>
+                            <TextBlock Grid.Row="0" Text="GO-AROUNDS BY WEATHER" FontSize="10" Foreground="{DynamicResource AtcTextMuted}" FontWeight="Bold" Margin="0,0,0,6"/>
                             <ItemsControl x:Name="GoAroundList" Grid.Row="1">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:CompileBindings="False">
-                                        <Grid ColumnDefinitions="*,Auto" Margin="0,1">
-                                            <TextBlock Grid.Column="0"
-                                                       Text="{Binding Label}"
-                                                       FontSize="11"
-                                                       Foreground="#CCFFFFFF"/>
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding Value}"
-                                                       FontSize="11"
-                                                       Foreground="#CCFFDD88"
-                                                       FontFamily="Courier New"/>
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                            <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="12" Foreground="White"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Value}" FontSize="12" Foreground="{DynamicResource AtcAccent}" FontFamily="Consolas" FontWeight="Bold"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </Grid>
                     </Border>
-
-                    <!-- Runway utilisation meters -->
-                    <Border Grid.Row="3" Padding="10,8,10,10">
+                    <!-- Runway meters -->
+                    <Border Grid.Row="3" Padding="12,8,12,16">
                         <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto">
-                            <TextBlock Grid.Row="0"
-                                       Text="RUNWAY UTILISATION"
-                                       FontSize="9"
-                                       Foreground="#66AABBCC"
-                                       FontWeight="Bold"
-                                       LetterSpacing="1"
-                                       Margin="0,0,0,6"/>
-                            <TextBlock Grid.Row="1"
-                                       Text="28L ARR"
-                                       FontSize="10"
-                                       Foreground="#CCFFFFFF"
-                                       Margin="0,0,0,2"/>
-                            <Border Grid.Row="2"
-                                    Height="8" CornerRadius="4"
-                                    Background="#22FFFFFF"
-                                    Margin="0,0,0,6">
-                                <Border x:Name="Rwy0Bar"
-                                        HorizontalAlignment="Left"
-                                        Height="8" Width="0" CornerRadius="4"
-                                        Background="#FF4CAF50"/>
+                            <TextBlock Grid.Row="0" Text="RUNWAY UTILIZATION" FontSize="10" Foreground="{DynamicResource AtcTextMuted}" FontWeight="Bold" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Text="28L ARRIVALS" FontSize="11" Foreground="White" Margin="0,0,0,4"/>
+                            <Border Grid.Row="2" Height="10" CornerRadius="5" Background="#1AFFFFFF" Margin="0,0,0,10">
+                                <Border x:Name="Rwy0Bar" HorizontalAlignment="Left" Height="10" Width="0" CornerRadius="5" Background="#FF4CAF50"/>
                             </Border>
-                            <TextBlock Grid.Row="3"
-                                       Text="28R DEP"
-                                       FontSize="10"
-                                       Foreground="#CCFFFFFF"
-                                       Margin="0,0,0,2"/>
-                            <Border Grid.Row="4"
-                                    Height="8" CornerRadius="4"
-                                    Background="#22FFFFFF">
-                                <Border x:Name="Rwy1Bar"
-                                        HorizontalAlignment="Left"
-                                        Height="8" Width="0" CornerRadius="4"
-                                        Background="#FF2196F3"/>
+                            <TextBlock Grid.Row="3" Text="28R DEPARTURES" FontSize="11" Foreground="White" Margin="0,0,0,4"/>
+                            <Border Grid.Row="4" Height="10" CornerRadius="5" Background="#1AFFFFFF">
+                                <Border x:Name="Rwy1Bar" HorizontalAlignment="Left" Height="10" Width="0" CornerRadius="5" Background="{DynamicResource AtcPrimary}"/>
                             </Border>
                         </Grid>
                     </Border>
-
                 </Grid>
             </Border>
-
         </Grid>
 
         <!-- ═══════════════════════════════════════════════════════════════ -->
-        <!-- ROW 1 — Control bar                                             -->
+        <!-- BOTTOM STATUS BAR                                               -->
         <!-- ═══════════════════════════════════════════════════════════════ -->
-        <Border Grid.Row="1"
-                Background="#EE141820"
-                Padding="10,7">
-            <Grid ColumnDefinitions="Auto, *, Auto">
-
-                <!-- LEFT: playback + speed + panel toggles + tools -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
-
-                    <Button x:Name="PauseButton"
-                            Content="⏸ Pause" Click="Pause_Click"
-                            Background="#2A3A4A" Foreground="White"
-                            CornerRadius="4" Padding="10,5"/>
-
-                    <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
-
-                    <Button Content="«" ToolTip.Tip="Speed down" Click="SpeedDown_Click"
-                            Background="#1E2A38" Foreground="White" CornerRadius="4" Padding="8,5"/>
-                    <Button Content="1×" Click="Speed1x_Click"
-                            Background="#1E2A38" Foreground="#88AABBCC" CornerRadius="4" Padding="8,5"/>
-                    <Button Content="60×" Click="Speed60x_Click"
-                            Background="#1E2A38" Foreground="#88AABBCC" CornerRadius="4" Padding="8,5"/>
-                    <Button Content="»" ToolTip.Tip="Speed up" Click="SpeedUp_Click"
-                            Background="#1E2A38" Foreground="White" CornerRadius="4" Padding="8,5"/>
-
-                    <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
-
-                    <Button x:Name="ToggleQueueButton"
-                            Content="☰ Queue" Click="ToggleQueue_Click"
-                            Background="#1A2D1A" Foreground="#88CCFFAA" CornerRadius="4" Padding="8,5"/>
-                    <Button x:Name="ToggleAlertsButton"
-                            Content="🔔 Alerts" Click="ToggleAlerts_Click"
-                            Background="#1A1A2D" Foreground="#88AABBFF" CornerRadius="4" Padding="8,5"/>
-
-                    <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
-
-                    <Button Content="🚨 Emergency" Click="Emergency_Click"
-                            Background="#3A0A0A" Foreground="#FFAAAA" CornerRadius="4" Padding="8,5"/>
-                    <Button Content="🌤 Weather" Click="Weather_Click"
-                            Background="#1A2030" Foreground="#AACCFF" CornerRadius="4" Padding="8,5"/>
-
-                    <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
-
-                    <Button x:Name="ToggleRadarButton"
-                            Content="📡 Radar" Click="ToggleRadar_Click"
-                            Background="#0A1A2A" Foreground="#88AAFFCC" CornerRadius="4" Padding="8,5"/>
-
-                    <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
-
-                    <!-- Stats dashboard toggle -->
-                    <Button x:Name="ToggleDashboardButton"
-                            Content="📊 Dashboard" Click="ToggleDashboard_Click"
-                            Background="#0A1A2A" Foreground="#88CCDDFF" CornerRadius="4" Padding="8,5"/>
-
+        <Border Grid.Column="1" Grid.Row="1"
+                Background="#0D1016"
+                BorderBrush="#252B36"
+                BorderThickness="0,1,0,0"
+                Padding="16,6">
+            <Grid>
+                <!-- Only minor readouts are kept down here now to keep the UI clean -->
+                <StackPanel Orientation="Horizontal" Spacing="20" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <TextBlock x:Name="RunwayText" Foreground="{DynamicResource AtcTextMuted}" FontSize="12"/>
+                    <TextBlock x:Name="StatsText" Foreground="{DynamicResource AtcTextMuted}" FontSize="12"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="SERVER STATUS" FontSize="10" Foreground="{DynamicResource AtcTextMuted}" VerticalAlignment="Center"/>
+                        <Border x:Name="ConnectionIndicator" Width="8" Height="8" CornerRadius="4" Background="Gray" ToolTip.Tip="Server connection"/>
+                    </StackPanel>
                 </StackPanel>
-
-                <!-- CENTRE: empty spacer -->
-                <Border Grid.Column="1"/>
-
-                <!-- RIGHT: status readouts -->
-                <StackPanel Grid.Column="2"
-                            Orientation="Horizontal"
-                            Spacing="16"
-                            VerticalAlignment="Center">
-                    <TextBlock x:Name="WeatherText" Foreground="#88AABBCC" FontSize="12" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="StatsText"   Foreground="#88AABBCC" FontSize="12" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="RunwayText"  FontSize="12" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="TimeText"    Foreground="Cyan" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <Border x:Name="ConnectionIndicator"
-                            Width="10" Height="10" CornerRadius="5"
-                            Background="Gray" VerticalAlignment="Center"
-                            ToolTip.Tip="Server connection"/>
-                </StackPanel>
-
             </Grid>
         </Border>
 
