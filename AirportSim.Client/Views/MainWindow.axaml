@@ -10,9 +10,49 @@
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AtcBackground}"
         TransparencyLevelHint="AcrylicBlur"
-        ExtendClientAreaToDecorationsHint="False"
-        Icon="avares://AirportSim.Client/app.manifest">
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40">
 
-    <views:SimulationView x:Name="MainSimView" />
+    <Grid>
+        <!-- Main Application Layout -->
+        <Grid RowDefinitions="40, *">
+            <!-- Custom Title Bar (HitTestVisible=False allows OS dragging) -->
+            <Grid Grid.Row="0" Background="{DynamicResource AtcSidebar}" IsHitTestVisible="False">
+                <TextBlock Text="✈ ATC TERMINAL DASHBOARD" 
+                           Foreground="{DynamicResource AtcPrimary}" 
+                           FontWeight="Bold" 
+                           VerticalAlignment="Center" 
+                           Margin="16,0,0,0"
+                           LetterSpacing="1.5"/>
+            </Grid>
+            
+            <!-- Your Simulation View -->
+            <views:SimulationView x:Name="MainSimView" Grid.Row="1" />
+        </Grid>
+
+        <!-- Startup Splash Screen Overlay -->
+        <Border x:Name="SplashOverlay" Background="{DynamicResource AtcBackground}" ZIndex="999">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="✈" FontSize="72" Foreground="{DynamicResource AtcPrimary}" HorizontalAlignment="Center">
+                    <TextBlock.Styles>
+                        <!-- Simple pulsing animation for the splash icon -->
+                        <Style Selector="TextBlock">
+                            <Style.Animations>
+                                <Animation Duration="0:0:1" IterationCount="Infinite" PlaybackDirection="Alternate">
+                                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.4"/></KeyFrame>
+                                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1.0"/></KeyFrame>
+                                </Animation>
+                            </Style.Animations>
+                        </Style>
+                    </TextBlock.Styles>
+                </TextBlock>
+                <TextBlock Text="CONNECTING TO RADAR..." 
+                           Foreground="{DynamicResource AtcText}" 
+                           Margin="0,16,0,0" 
+                           LetterSpacing="2"
+                           FontWeight="Medium"/>
+            </StackPanel>
+        </Border>
+    </Grid>
 
 </Window>

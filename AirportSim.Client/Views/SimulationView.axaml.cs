@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Media;
@@ -29,6 +30,8 @@ namespace AirportSim.Client.Views
         private static readonly SolidColorBrush BrushTextMuted  = new(Color.FromRgb(90,  106, 122));
         private static readonly SolidColorBrush BrushText       = new(Color.FromRgb(232, 237, 245));
         private static readonly SolidColorBrush BrushGray       = new(Color.FromRgb(100, 116, 132));
+        // Accent brush referenced in toggle handlers
+        private static readonly SolidColorBrush BrushAccent     = new(Color.FromRgb(255, 176, 32));
 
         public SimulationView()
         {
@@ -50,6 +53,27 @@ namespace AirportSim.Client.Views
             _uiTimer.Start();
 
             vm.Start();
+        }
+
+        // ── Lifecycle & Cleanup ───────────────────────────────────────────────
+        
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            base.OnDetachedFromVisualTree(e);
+
+            // 1. Stop the UI timer to prevent background ticking
+            if (_uiTimer != null)
+            {
+                _uiTimer.Stop();
+                _uiTimer = null;
+            }
+
+            // 2. Unsubscribe from ViewModel events to prevent memory leaks
+            if (_vm != null)
+            {
+                _vm.StateChanged -= RefreshAlertList;
+                _vm.EmergencyDetected -= OnEmergencyDetected;
+            }
         }
 
         // ── Status bar ────────────────────────────────────────────────────────
@@ -323,136 +347,135 @@ namespace AirportSim.Client.Views
         // ── Dashboard ─────────────────────────────────────────────────────────
 
         private void UpdateDashboard()
-{
-    if (_vm == null) return;
-
-    // ── Traffic graph — line chart with filled area ───────────────────────
-    var graphCanvas = this.FindControl<Canvas>("TrafficGraphCanvas");
-    if (graphCanvas != null)
-    {
-        graphCanvas.Children.Clear();
-        var history = _vm.TrafficHistory;
-        int    n    = history.Count;
-        double cw   = graphCanvas.Bounds.Width  > 0 ? graphCanvas.Bounds.Width  : 300;
-        double ch   = graphCanvas.Bounds.Height > 0 ? graphCanvas.Bounds.Height : 65;
-        int maxVal  = Math.Max(1, n > 0 ? history.Max(h => h.Count) : 1);
-
-        // Subtle horizontal grid lines at 25 / 50 / 75 %
-        foreach (double pctLine in new[] { 0.25, 0.5, 0.75 })
         {
-            double gy = ch - pctLine * (ch - 8) - 4;
-            var gridLine = new Line
-            {
-                StartPoint = new Avalonia.Point(0,  gy),
-                EndPoint   = new Avalonia.Point(cw, gy),
-                Stroke     = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
-                StrokeThickness = 1
-            };
-            graphCanvas.Children.Add(gridLine);
-        }
+            if (_vm == null) return;
 
-        if (n >= 2)
-        {
-            // Build point list
-            var pts = new List<Avalonia.Point>();
-            for (int i = 0; i < n; i++)
+            // ── Traffic graph — line chart with filled area ───────────────────────
+            var graphCanvas = this.FindControl<Canvas>("TrafficGraphCanvas");
+            if (graphCanvas != null)
             {
-                double fraction = (double)history[i].Count / maxVal;
-                double px = i * cw / (n - 1);
-                double py = ch - 4 - fraction * (ch - 8);
-                pts.Add(new Avalonia.Point(px, py));
+                graphCanvas.Children.Clear();
+                var history = _vm.TrafficHistory;
+                int    n    = history.Count;
+                double cw   = graphCanvas.Bounds.Width  > 0 ? graphCanvas.Bounds.Width  : 300;
+                double ch   = graphCanvas.Bounds.Height > 0 ? graphCanvas.Bounds.Height : 65;
+                int maxVal  = Math.Max(1, n > 0 ? history.Max(h => h.Count) : 1);
+
+                // Subtle horizontal grid lines at 25 / 50 / 75 %
+                foreach (double pctLine in new[] { 0.25, 0.5, 0.75 })
+                {
+                    double gy = ch - pctLine * (ch - 8) - 4;
+                    var gridLine = new Line
+                    {
+                        StartPoint = new Avalonia.Point(0,  gy),
+                        EndPoint   = new Avalonia.Point(cw, gy),
+                        Stroke     = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
+                        StrokeThickness = 1
+                    };
+                    graphCanvas.Children.Add(gridLine);
+                }
+
+                if (n >= 2)
+                {
+                    // Build point list
+                    var pts = new List<Avalonia.Point>();
+                    for (int i = 0; i < n; i++)
+                    {
+                        double fraction = (double)history[i].Count / maxVal;
+                        double px = i * cw / (n - 1);
+                        double py = ch - 4 - fraction * (ch - 8);
+                        pts.Add(new Avalonia.Point(px, py));
+                    }
+
+                    // Filled area polygon (line pts + bottom corners)
+                    var polyPts = new Avalonia.Collections.AvaloniaList<Avalonia.Point>(pts);
+                    polyPts.Add(new Avalonia.Point(pts[^1].X, ch));
+                    polyPts.Add(new Avalonia.Point(pts[0].X,  ch));
+
+                    var area = new Polygon
+                    {
+                        Points  = polyPts,
+                        Fill    = new SolidColorBrush(Color.FromArgb(40, 0, 217, 245)),
+                        Stroke  = Brushes.Transparent,
+                    };
+                    graphCanvas.Children.Add(area);
+
+                    // Line itself
+                    var polyLine = new Polyline
+                    {
+                        Points          = new Avalonia.Collections.AvaloniaList<Avalonia.Point>(pts),
+                        Stroke          = new SolidColorBrush(Color.FromArgb(220, 0, 217, 245)),
+                        StrokeThickness = 1.5,
+                        StrokeLineCap   = PenLineCap.Round,
+                        StrokeJoin      = PenLineJoin.Round,
+                    };
+                    graphCanvas.Children.Add(polyLine);
+
+                    // Dot at latest point
+                    var lastPt = pts[^1];
+                    double load = n > 0 ? (double)history[^1].Count / maxVal : 0;
+                    Color dotColor = load > 0.75 ? Color.FromRgb(239, 68, 68)
+                        : load > 0.45            ? Color.FromRgb(245, 158, 11)
+                                                 : Color.FromRgb(0, 217, 245);
+
+                    var dot = new Ellipse
+                    {
+                        Width  = 7, Height = 7,
+                        Fill   = new SolidColorBrush(dotColor),
+                    };
+                    Canvas.SetLeft(dot, lastPt.X - 3.5);
+                    Canvas.SetTop(dot,  lastPt.Y - 3.5);
+                    graphCanvas.Children.Add(dot);
+                }
+
+                // Peak label top-right
+                if (n > 0)
+                {
+                    var lbl = new TextBlock
+                    {
+                        Text       = $"peak {maxVal} ac",
+                        FontSize   = 9,
+                        Foreground = new SolidColorBrush(Color.FromArgb(140, 0, 217, 245))
+                    };
+                    Canvas.SetRight(lbl, 4);
+                    Canvas.SetTop(lbl,   3);
+                    graphCanvas.Children.Add(lbl);
+
+                    // Current count bottom-right
+                    var cur = new TextBlock
+                    {
+                        Text       = $"now  {history[^1].Count} ac",
+                        FontSize   = 9,
+                        FontWeight = Avalonia.Media.FontWeight.Bold,
+                        Foreground = new SolidColorBrush(Color.FromArgb(200, 0, 217, 245))
+                    };
+                    Canvas.SetRight(cur, 4);
+                    Canvas.SetBottom(cur, 3);
+                    graphCanvas.Children.Add(cur);
+                }
             }
 
-            // Filled area polygon (line pts + bottom corners)
-            var polyPts = new Avalonia.Collections.AvaloniaList<Avalonia.Point>(pts);
-            polyPts.Add(new Avalonia.Point(pts[^1].X, ch));
-            polyPts.Add(new Avalonia.Point(pts[0].X,  ch));
-
-            var area = new Polygon
+            // ── Go-arounds by weather ─────────────────────────────────────────────
+            var goList = this.FindControl<ItemsControl>("GoAroundList");
+            if (goList != null)
             {
-                Points  = polyPts,
-                Fill    = new SolidColorBrush(Color.FromArgb(40, 0, 217, 245)),
-                Stroke  = Brushes.Transparent,
-            };
-            graphCanvas.Children.Add(area);
+                var rows = _vm.GoAroundsByWeather
+                    .Select(kv => new { Label = WeatherLabel(kv.Key), Value = $"{kv.Value,4}" })
+                    .ToList();
+                goList.ItemsSource = rows;
+            }
 
-            // Line itself
-var polyLine = new Polyline
-{
-    Points          = new Avalonia.Collections.AvaloniaList<Avalonia.Point>(pts),
-    Stroke          = new SolidColorBrush(Color.FromArgb(220, 0, 217, 245)),
-    StrokeThickness = 1.5,
-    StrokeLineCap   = PenLineCap.Round,
-    StrokeJoin      = PenLineJoin.Round, // <-- Changed from StrokeLineJoin to StrokeJoin
-};
-            graphCanvas.Children.Add(polyLine);
-
-            // Dot at latest point
-            var lastPt = pts[^1];
-            double load = n > 0 ? (double)history[^1].Count / maxVal : 0;
-            Color dotColor = load > 0.75 ? Color.FromRgb(239, 68, 68)
-                : load > 0.45            ? Color.FromRgb(245, 158, 11)
-                                         : Color.FromRgb(0, 217, 245);
-
-            var dot = new Ellipse
-            {
-                Width  = 7, Height = 7,
-                Fill   = new SolidColorBrush(dotColor),
-            };
-            Canvas.SetLeft(dot, lastPt.X - 3.5);
-            Canvas.SetTop(dot,  lastPt.Y - 3.5);
-            graphCanvas.Children.Add(dot);
+            // ── Runway utilisation bars + percentage labels ────────────────────────
+            UpdateUtilBar("Rwy0Bar", "Rwy0Pct", _vm.Runway0Utilisation);
+            UpdateUtilBar("Rwy1Bar", "Rwy1Pct", _vm.Runway1Utilisation);
         }
-
-        // Peak label top-right
-        if (n > 0)
-        {
-            var lbl = new TextBlock
-            {
-                Text       = $"peak {maxVal} ac",
-                FontSize   = 9,
-                Foreground = new SolidColorBrush(Color.FromArgb(140, 0, 217, 245))
-            };
-            Canvas.SetRight(lbl, 4);
-            Canvas.SetTop(lbl,   3);
-            graphCanvas.Children.Add(lbl);
-
-            // Current count bottom-right
-            var cur = new TextBlock
-            {
-                Text       = $"now  {history[^1].Count} ac",
-                FontSize   = 9,
-                FontWeight = Avalonia.Media.FontWeight.Bold,
-                Foreground = new SolidColorBrush(Color.FromArgb(200, 0, 217, 245))
-            };
-            Canvas.SetRight(cur, 4);
-            Canvas.SetBottom(cur, 3);
-            graphCanvas.Children.Add(cur);
-        }
-    }
-
-    // ── Go-arounds by weather ─────────────────────────────────────────────
-    var goList = this.FindControl<ItemsControl>("GoAroundList");
-    if (goList != null)
-    {
-        var rows = _vm.GoAroundsByWeather
-            .Select(kv => new { Label = WeatherLabel(kv.Key), Value = $"{kv.Value,4}" })
-            .ToList();
-        goList.ItemsSource = rows;
-    }
-
-    // ── Runway utilisation bars + percentage labels ────────────────────────
-    UpdateUtilBar("Rwy0Bar", "Rwy0Pct", _vm.Runway0Utilisation);
-    UpdateUtilBar("Rwy1Bar", "Rwy1Pct", _vm.Runway1Utilisation);
-}
 
         private void UpdateUtilBar(string barName, string pctName, double fraction)
         {
-            var bar    = this.FindControl<Border>(barName);
-            var parent = bar?.Parent as Border;
-            var pct    = this.FindControl<TextBlock>(pctName);
-
-            if (bar == null || parent == null) return;
+            if (this.FindControl<Border>(barName) is not { } bar || 
+                bar.Parent is not Border parent || 
+                this.FindControl<TextBlock>(pctName) is not { } pct) 
+                return;
 
             double maxW = parent.Bounds.Width > 0
                 ? parent.Bounds.Width - parent.Padding.Left - parent.Padding.Right
@@ -460,16 +483,16 @@ var polyLine = new Polyline
 
             bar.Width = Math.Clamp(fraction * maxW, 0, maxW);
 
-            SolidColorBrush barColor = fraction < 0.60 ? BrushSuccess
-                : fraction < 0.85 ? BrushWarning
-                : BrushDanger;
+            SolidColorBrush barColor = fraction switch
+            {
+                < 0.60 => BrushSuccess,
+                < 0.85 => BrushWarning,
+                _      => BrushDanger
+            };
 
             bar.Background = barColor;
-            if (pct != null)
-            {
-                pct.Text       = $"{fraction * 100:F0}%";
-                pct.Foreground = barColor;
-            }
+            pct.Text       = $"{fraction * 100:F0}%";
+            pct.Foreground = barColor;
         }
 
         private static string WeatherLabel(WeatherCondition w) => w switch
@@ -481,8 +504,5 @@ var polyLine = new Polyline
             WeatherCondition.Storm  => "⛈ Storm",
             _                       => w.ToString()
         };
-
-        // Accent brush referenced in toggle handlers
-        private static readonly SolidColorBrush BrushAccent = new(Color.FromRgb(255, 176, 32));
     }
 }

@@ -1,4 +1,6 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
+using System;
 using AirportSim.Client.ViewModels;
 
 namespace AirportSim.Client.Views
@@ -16,6 +18,13 @@ namespace AirportSim.Client.Views
 
             var simView = this.FindControl<SimulationView>("MainSimView");
             simView?.Initialize(ViewModel.Simulation);
+
+            // Dismiss splash screen after 1.5 seconds to reveal the UI
+            DispatcherTimer.RunOnce(() =>
+            {
+                var splash = this.FindControl<Border>("SplashOverlay");
+                if (splash != null) splash.IsVisible = false;
+            }, TimeSpan.FromSeconds(1.5));
         }
     }
 }

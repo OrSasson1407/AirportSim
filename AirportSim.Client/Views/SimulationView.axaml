@@ -95,12 +95,7 @@
                                            Foreground="{DynamicResource AtcTextMuted}"
                                            LetterSpacing="1.5"/>
                             </StackPanel>
-                            <Border Grid.Column="1"
-                                    x:Name="ConnectionIndicator"
-                                    Width="8" Height="8" CornerRadius="4"
-                                    Background="Gray"
-                                    VerticalAlignment="Center"
-                                    ToolTip.Tip="Server connection"/>
+                    
                         </Grid>
                     </Border>
 

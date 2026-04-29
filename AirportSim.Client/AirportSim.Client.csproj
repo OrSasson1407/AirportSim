@@ -1,11 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+  
   <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-<TargetFramework>net9.0</TargetFramework>
+<OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Keep the Assets folder for future real icons/images -->
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.0.1" />
@@ -22,4 +28,5 @@
   <ItemGroup>
     <ProjectReference Include="..\AirportSim.Shared\AirportSim.Shared.csproj" />
   </ItemGroup>
+  
 </Project>
