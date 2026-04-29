@@ -77,7 +77,7 @@ namespace AirportSim.Client.Rendering
             using (ctx.PushTransform(Matrix.CreateScale(scaleX, scaleY)))
             {
                 _sky.Render(ctx, snap.SimulatedTime, weather);
-                _ground.Render(ctx, snap.SimulatedTime, weather);
+                _ground.Render(ctx, snap.SimulatedTime, weather, snap.ActiveAircraft, realDeltaMs);
                 _runway.Render(ctx, snap.SimulatedTime, weather, realDeltaMs);
                 _aircraft.Render(ctx, _viewModel.PreviousSnapshot, snap, t);
             }

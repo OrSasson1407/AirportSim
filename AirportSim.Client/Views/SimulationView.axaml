@@ -24,8 +24,6 @@
                     CornerRadius="6"
                     IsVisible="False">
                 <Grid RowDefinitions="Auto, *">
-
-                    <!-- Header -->
                     <Border Grid.Row="0"
                             Background="#331A1C28"
                             CornerRadius="6,6,0,0"
@@ -48,8 +46,6 @@
                                     Click="ClearAlerts_Click"/>
                         </Grid>
                     </Border>
-
-                    <!-- Scrollable alert list -->
                     <ScrollViewer Grid.Row="1"
                                   x:Name="AlertScroller"
                                   VerticalScrollBarVisibility="Auto">
@@ -68,7 +64,6 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-
                 </Grid>
             </Border>
 
@@ -82,7 +77,6 @@
                     CornerRadius="6"
                     IsVisible="False">
                 <Grid RowDefinitions="Auto, *">
-
                     <Border Grid.Row="0"
                             Background="#331A1C28"
                             CornerRadius="6,6,0,0"
@@ -93,9 +87,7 @@
                                    Foreground="#88AABBCC"
                                    LetterSpacing="2"/>
                     </Border>
-
-                    <ItemsControl Grid.Row="1"
-                                  x:Name="QueueList">
+                    <ItemsControl Grid.Row="1" x:Name="QueueList">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
                                 <Border Padding="10,5"
@@ -109,7 +101,6 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-
                 </Grid>
             </Border>
 
@@ -130,6 +121,134 @@
                            HorizontalAlignment="Center"/>
             </Border>
 
+            <!-- ── Stats Dashboard panel (bottom-right overlay) ── -->
+            <Border x:Name="DashboardPanel"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,8,8"
+                    Width="340"
+                    Background="#EE0A0C18"
+                    CornerRadius="6"
+                    IsVisible="False">
+                <Grid RowDefinitions="Auto, Auto, Auto, Auto">
+
+                    <!-- Header -->
+                    <Border Grid.Row="0"
+                            Background="#331A1C28"
+                            CornerRadius="6,6,0,0"
+                            Padding="10,6">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Grid.Column="0"
+                                       Text="LIVE STATS DASHBOARD"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       Foreground="#88AABBCC"
+                                       LetterSpacing="2"/>
+                            <Button Grid.Column="1"
+                                    Content="✕"
+                                    FontSize="10"
+                                    Foreground="#88AABBCC"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="4,0"
+                                    Click="ToggleDashboard_Click"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Traffic graph section -->
+                    <Border Grid.Row="1" Padding="10,8,10,4">
+                        <Grid RowDefinitions="Auto, Auto">
+                            <TextBlock Grid.Row="0"
+                                       Text="TRAFFIC (last 10 min)"
+                                       FontSize="9"
+                                       Foreground="#66AABBCC"
+                                       FontWeight="Bold"
+                                       LetterSpacing="1"
+                                       Margin="0,0,0,4"/>
+                            <Canvas x:Name="TrafficGraphCanvas"
+                                    Grid.Row="1"
+                                    Height="60"
+                                    Background="#110A0C18"
+                                    ClipToBounds="True"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Go-around rate by weather -->
+                    <Border Grid.Row="2"
+                            Padding="10,4,10,4"
+                            BorderThickness="0,1,0,1"
+                            BorderBrush="#22FFFFFF">
+                        <Grid RowDefinitions="Auto, Auto">
+                            <TextBlock Grid.Row="0"
+                                       Text="GO-AROUNDS BY WEATHER"
+                                       FontSize="9"
+                                       Foreground="#66AABBCC"
+                                       FontWeight="Bold"
+                                       LetterSpacing="1"
+                                       Margin="0,0,0,4"/>
+                            <ItemsControl x:Name="GoAroundList" Grid.Row="1">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,1">
+                                            <TextBlock Grid.Column="0"
+                                                       Text="{Binding Label}"
+                                                       FontSize="11"
+                                                       Foreground="#CCFFFFFF"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Value}"
+                                                       FontSize="11"
+                                                       Foreground="#CCFFDD88"
+                                                       FontFamily="Courier New"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                    </Border>
+
+                    <!-- Runway utilisation meters -->
+                    <Border Grid.Row="3" Padding="10,8,10,10">
+                        <Grid RowDefinitions="Auto, Auto, Auto, Auto, Auto">
+                            <TextBlock Grid.Row="0"
+                                       Text="RUNWAY UTILISATION"
+                                       FontSize="9"
+                                       Foreground="#66AABBCC"
+                                       FontWeight="Bold"
+                                       LetterSpacing="1"
+                                       Margin="0,0,0,6"/>
+                            <TextBlock Grid.Row="1"
+                                       Text="28L ARR"
+                                       FontSize="10"
+                                       Foreground="#CCFFFFFF"
+                                       Margin="0,0,0,2"/>
+                            <Border Grid.Row="2"
+                                    Height="8" CornerRadius="4"
+                                    Background="#22FFFFFF"
+                                    Margin="0,0,0,6">
+                                <Border x:Name="Rwy0Bar"
+                                        HorizontalAlignment="Left"
+                                        Height="8" Width="0" CornerRadius="4"
+                                        Background="#FF4CAF50"/>
+                            </Border>
+                            <TextBlock Grid.Row="3"
+                                       Text="28R DEP"
+                                       FontSize="10"
+                                       Foreground="#CCFFFFFF"
+                                       Margin="0,0,0,2"/>
+                            <Border Grid.Row="4"
+                                    Height="8" CornerRadius="4"
+                                    Background="#22FFFFFF">
+                                <Border x:Name="Rwy1Bar"
+                                        HorizontalAlignment="Left"
+                                        Height="8" Width="0" CornerRadius="4"
+                                        Background="#FF2196F3"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                </Grid>
+            </Border>
+
         </Grid>
 
         <!-- ═══════════════════════════════════════════════════════════════ -->
@@ -138,100 +257,55 @@
         <Border Grid.Row="1"
                 Background="#EE141820"
                 Padding="10,7">
-
             <Grid ColumnDefinitions="Auto, *, Auto">
 
                 <!-- LEFT: playback + speed + panel toggles + tools -->
-                <StackPanel Grid.Column="0"
-                            Orientation="Horizontal"
-                            Spacing="6">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6">
 
                     <Button x:Name="PauseButton"
-                            Content="⏸ Pause"
-                            Click="Pause_Click"
-                            Background="#2A3A4A"
-                            Foreground="White"
-                            CornerRadius="4"
-                            Padding="10,5"/>
+                            Content="⏸ Pause" Click="Pause_Click"
+                            Background="#2A3A4A" Foreground="White"
+                            CornerRadius="4" Padding="10,5"/>
 
                     <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
 
-                    <Button Content="«"
-                            ToolTip.Tip="Speed down"
-                            Click="SpeedDown_Click"
-                            Background="#1E2A38"
-                            Foreground="White"
-                            CornerRadius="4"
-                            Padding="8,5"/>
-
-                    <Button Content="1×"
-                            Click="Speed1x_Click"
-                            Background="#1E2A38"
-                            Foreground="#88AABBCC"
-                            CornerRadius="4"
-                            Padding="8,5"/>
-
-                    <Button Content="60×"
-                            Click="Speed60x_Click"
-                            Background="#1E2A38"
-                            Foreground="#88AABBCC"
-                            CornerRadius="4"
-                            Padding="8,5"/>
-
-                    <Button Content="»"
-                            ToolTip.Tip="Speed up"
-                            Click="SpeedUp_Click"
-                            Background="#1E2A38"
-                            Foreground="White"
-                            CornerRadius="4"
-                            Padding="8,5"/>
+                    <Button Content="«" ToolTip.Tip="Speed down" Click="SpeedDown_Click"
+                            Background="#1E2A38" Foreground="White" CornerRadius="4" Padding="8,5"/>
+                    <Button Content="1×" Click="Speed1x_Click"
+                            Background="#1E2A38" Foreground="#88AABBCC" CornerRadius="4" Padding="8,5"/>
+                    <Button Content="60×" Click="Speed60x_Click"
+                            Background="#1E2A38" Foreground="#88AABBCC" CornerRadius="4" Padding="8,5"/>
+                    <Button Content="»" ToolTip.Tip="Speed up" Click="SpeedUp_Click"
+                            Background="#1E2A38" Foreground="White" CornerRadius="4" Padding="8,5"/>
 
                     <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
 
-                    <!-- Toggleable panels -->
                     <Button x:Name="ToggleQueueButton"
-                            Content="☰ Queue"
-                            Click="ToggleQueue_Click"
-                            Background="#1A2D1A"
-                            Foreground="#88CCFFAA"
-                            CornerRadius="4"
-                            Padding="8,5"/>
-
+                            Content="☰ Queue" Click="ToggleQueue_Click"
+                            Background="#1A2D1A" Foreground="#88CCFFAA" CornerRadius="4" Padding="8,5"/>
                     <Button x:Name="ToggleAlertsButton"
-                            Content="🔔 Alerts"
-                            Click="ToggleAlerts_Click"
-                            Background="#1A1A2D"
-                            Foreground="#88AABBFF"
-                            CornerRadius="4"
-                            Padding="8,5"/>
+                            Content="🔔 Alerts" Click="ToggleAlerts_Click"
+                            Background="#1A1A2D" Foreground="#88AABBFF" CornerRadius="4" Padding="8,5"/>
 
                     <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
 
-                    <!-- Emergency + Weather -->
-                    <Button Content="🚨 Emergency"
-                            Click="Emergency_Click"
-                            Background="#3A0A0A"
-                            Foreground="#FFAAAA"
-                            CornerRadius="4"
-                            Padding="8,5"/>
-
-                    <Button Content="🌤 Weather"
-                            Click="Weather_Click"
-                            Background="#1A2030"
-                            Foreground="#AACCFF"
-                            CornerRadius="4"
-                            Padding="8,5"/>
+                    <Button Content="🚨 Emergency" Click="Emergency_Click"
+                            Background="#3A0A0A" Foreground="#FFAAAA" CornerRadius="4" Padding="8,5"/>
+                    <Button Content="🌤 Weather" Click="Weather_Click"
+                            Background="#1A2030" Foreground="#AACCFF" CornerRadius="4" Padding="8,5"/>
 
                     <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
 
-                    <!-- Radar toggle -->
                     <Button x:Name="ToggleRadarButton"
-                            Content="📡 Radar"
-                            Click="ToggleRadar_Click"
-                            Background="#0A1A2A"
-                            Foreground="#88AAFFCC"
-                            CornerRadius="4"
-                            Padding="8,5"/>
+                            Content="📡 Radar" Click="ToggleRadar_Click"
+                            Background="#0A1A2A" Foreground="#88AAFFCC" CornerRadius="4" Padding="8,5"/>
+
+                    <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
+
+                    <!-- Stats dashboard toggle -->
+                    <Button x:Name="ToggleDashboardButton"
+                            Content="📊 Dashboard" Click="ToggleDashboard_Click"
+                            Background="#0A1A2A" Foreground="#88CCDDFF" CornerRadius="4" Padding="8,5"/>
 
                 </StackPanel>
 
@@ -243,34 +317,14 @@
                             Orientation="Horizontal"
                             Spacing="16"
                             VerticalAlignment="Center">
-
-                    <TextBlock x:Name="WeatherText"
-                               Foreground="#88AABBCC"
-                               FontSize="12"
-                               VerticalAlignment="Center"/>
-
-                    <TextBlock x:Name="StatsText"
-                               Foreground="#88AABBCC"
-                               FontSize="12"
-                               VerticalAlignment="Center"/>
-
-                    <TextBlock x:Name="RunwayText"
-                               FontSize="12"
-                               VerticalAlignment="Center"/>
-
-                    <TextBlock x:Name="TimeText"
-                               Foreground="Cyan"
-                               FontSize="13"
-                               FontWeight="Bold"
-                               VerticalAlignment="Center"/>
-
+                    <TextBlock x:Name="WeatherText" Foreground="#88AABBCC" FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="StatsText"   Foreground="#88AABBCC" FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="RunwayText"  FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="TimeText"    Foreground="Cyan" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
                     <Border x:Name="ConnectionIndicator"
-                            Width="10" Height="10"
-                            CornerRadius="5"
-                            Background="Gray"
-                            VerticalAlignment="Center"
+                            Width="10" Height="10" CornerRadius="5"
+                            Background="Gray" VerticalAlignment="Center"
                             ToolTip.Tip="Server connection"/>
-
                 </StackPanel>
 
             </Grid>

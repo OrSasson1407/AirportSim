@@ -17,22 +17,42 @@ namespace AirportSim.Client.ViewModels
         public SimSnapshot? TargetSnapshot   { get; private set; }
         public DateTime     LastSnapshotTime { get; private set; }
 
-        // NEW: connection health flag read by the UI status bar
         public bool IsConnected { get; private set; }
 
-        // NEW: rolling alert queue shown in the overlay panel (newest first)
+        // ── Alert queue ───────────────────────────────────────────────────────
         private readonly List<string> _alertQueue = new();
         private const int AlertQueueMax = 30;
         public IReadOnlyList<string> AlertQueue => _alertQueue;
 
-        // NEW: fires whenever alert queue or connection state changes
-        //      SimulationView subscribes to trigger a lightweight UI refresh
-        public event Action? StateChanged;
+        // ── Dashboard history data ────────────────────────────────────────────
+        private readonly List<(DateTime SimTime, int Count)> _trafficHistory = new();
+        private DateTime _lastTrafficSample = DateTime.MinValue;
+        private const int TrafficHistoryMaxSamples = 20;   // 20 × 30s = 10 min
 
-        // NEW: fires when an emergency aircraft is detected in the snapshot
+        private readonly Dictionary<WeatherCondition, int> _goAroundsByWeather = new()
+        {
+            [WeatherCondition.Clear]  = 0,
+            [WeatherCondition.Cloudy] = 0,
+            [WeatherCondition.Rain]   = 0,
+            [WeatherCondition.Fog]    = 0,
+            [WeatherCondition.Storm]  = 0,
+        };
+        private int _lastGoAroundCount = 0;
+
+        private int _rwySamplesTotal;
+        private int _rwy0OccupiedSamples;
+        private int _rwy1OccupiedSamples;
+
+        public IReadOnlyList<(DateTime SimTime, int Count)> TrafficHistory => _trafficHistory;
+        public IReadOnlyDictionary<WeatherCondition, int>   GoAroundsByWeather => _goAroundsByWeather;
+        public double Runway0Utilisation => _rwySamplesTotal == 0 ? 0.0
+            : (double)_rwy0OccupiedSamples / _rwySamplesTotal;
+        public double Runway1Utilisation => _rwySamplesTotal == 0 ? 0.0
+            : (double)_rwy1OccupiedSamples / _rwySamplesTotal;
+
+        public event Action? StateChanged;
         public event Action<string>? EmergencyDetected;
 
-        // Tracks which flight IDs we've already raised emergency events for
         private readonly HashSet<string> _knownEmergencies = new();
 
         public SimulationViewModel()
@@ -52,7 +72,6 @@ namespace AirportSim.Client.ViewModels
 
         // ── Interpolation ─────────────────────────────────────────────────────
 
-        // Called 60× per second by AirportCanvas
         public double GetInterpolationT()
         {
             if (TargetSnapshot == null || PreviousSnapshot == null) return 0;
@@ -60,8 +79,6 @@ namespace AirportSim.Client.ViewModels
             return Math.Clamp(elapsed / 200.0, 0.0, 1.0);
         }
 
-        // NEW: interpolate a single aircraft's position given its FlightId
-        //      Returns null if the aircraft isn't in both snapshots
         public (double x, double y, double heading)? GetInterpolatedPosition(string flightId)
         {
             if (TargetSnapshot == null) return null;
@@ -89,12 +106,10 @@ namespace AirportSim.Client.ViewModels
             TargetSnapshot   = snapshot;
             LastSnapshotTime = DateTime.UtcNow;
 
-            // NEW: sync server-side alerts into our local queue
             foreach (var alert in snapshot.RecentAlerts)
                 if (!_alertQueue.Contains(alert))
                     PushAlert(alert);
 
-            // NEW: detect any emergency aircraft and raise event on UI thread
             foreach (var ac in snapshot.ActiveAircraft)
             {
                 if (ac.Status == AircraftStatus.Emergency &&
@@ -106,53 +121,64 @@ namespace AirportSim.Client.ViewModels
                 }
             }
 
-            // Clean up finished emergencies
             var activeIds = snapshot.ActiveAircraft.Select(a => a.FlightId).ToHashSet();
             _knownEmergencies.IntersectWith(activeIds);
+
+            // ── Dashboard: sample traffic history every 30 sim-seconds ────────
+            if ((snapshot.SimulatedTime - _lastTrafficSample).TotalSeconds >= 30)
+            {
+                _lastTrafficSample = snapshot.SimulatedTime;
+                _trafficHistory.Add((snapshot.SimulatedTime, snapshot.ActiveAircraft.Count));
+                if (_trafficHistory.Count > TrafficHistoryMaxSamples)
+                    _trafficHistory.RemoveAt(0);
+            }
+
+            // ── Dashboard: attribute new go-arounds to current weather ────────
+            int newGoArounds = snapshot.GoAroundsToday - _lastGoAroundCount;
+            if (newGoArounds > 0)
+            {
+                _goAroundsByWeather[snapshot.Weather] =
+                    _goAroundsByWeather.GetValueOrDefault(snapshot.Weather) + newGoArounds;
+            }
+            _lastGoAroundCount = snapshot.GoAroundsToday;
+
+            // ── Dashboard: runway utilisation sample ──────────────────────────
+            _rwySamplesTotal++;
+            if (snapshot.Runways.Count > 0 && snapshot.Runways[0].Status == RunwayStatus.Occupied)
+                _rwy0OccupiedSamples++;
+            if (snapshot.Runways.Count > 1 && snapshot.Runways[1].Status == RunwayStatus.Occupied)
+                _rwy1OccupiedSamples++;
         }
 
-        private void HandleAlert(string message)
-        {
-            PushAlert(message);
-        }
+        private void HandleAlert(string message) => PushAlert(message);
 
         private void SetConnected(bool connected)
         {
             IsConnected = connected;
             if (!connected)
                 PushAlert("⚠ Disconnected from server — reconnecting...");
-
             Dispatcher.UIThread.Post(() => StateChanged?.Invoke());
         }
 
         private void PushAlert(string message)
         {
-            // Prepend so newest is at index 0
             _alertQueue.Insert(0, message);
             if (_alertQueue.Count > AlertQueueMax)
                 _alertQueue.RemoveAt(_alertQueue.Count - 1);
-
             Dispatcher.UIThread.Post(() => StateChanged?.Invoke());
         }
 
-        // ── Convenience properties for the status bar ─────────────────────────
+        // ── Convenience properties ────────────────────────────────────────────
 
-        // NEW: formatted sim time string
         public string SimTimeText => TargetSnapshot != null
-            ? $"{TargetSnapshot.SimulatedTime:HH:mm:ss}"
-            : "--:--:--";
+            ? $"{TargetSnapshot.SimulatedTime:HH:mm:ss}" : "--:--:--";
 
-        // NEW: formatted speed string
         public string SpeedText => TargetSnapshot != null
-            ? $"{TargetSnapshot.TimeScale}×"
-            : "–";
+            ? $"{TargetSnapshot.TimeScale}×" : "–";
 
-        // NEW: weather icon + name
         public string WeatherText => TargetSnapshot != null
-            ? WeatherIcon(TargetSnapshot.Weather)
-            : "";
+            ? WeatherIcon(TargetSnapshot.Weather) : "";
 
-        // NEW: true when any active aircraft is squawking emergency
         public bool HasActiveEmergency => TargetSnapshot?.ActiveAircraft
             .Any(a => a.Status == AircraftStatus.Emergency) ?? false;
 
