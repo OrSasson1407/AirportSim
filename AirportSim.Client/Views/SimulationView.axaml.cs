@@ -20,6 +20,16 @@ namespace AirportSim.Client.Views
         private bool                 _radarVisible;
         private bool                 _dashboardVisible;
 
+        // Design-system colours (match App.axaml tokens)
+        private static readonly SolidColorBrush BrushSuccess    = new(Color.FromRgb(34,  197, 94));
+        private static readonly SolidColorBrush BrushPrimary    = new(Color.FromRgb(0,   217, 245));
+        private static readonly SolidColorBrush BrushWarning    = new(Color.FromRgb(245, 158, 11));
+        private static readonly SolidColorBrush BrushDanger     = new(Color.FromRgb(239, 68,  68));
+        private static readonly SolidColorBrush BrushInfo       = new(Color.FromRgb(59,  130, 246));
+        private static readonly SolidColorBrush BrushTextMuted  = new(Color.FromRgb(90,  106, 122));
+        private static readonly SolidColorBrush BrushText       = new(Color.FromRgb(232, 237, 245));
+        private static readonly SolidColorBrush BrushGray       = new(Color.FromRgb(100, 116, 132));
+
         public SimulationView()
         {
             InitializeComponent();
@@ -49,59 +59,58 @@ namespace AirportSim.Client.Views
             if (_vm == null) return;
             var snap = _vm.TargetSnapshot;
 
+            // Connection dot (now in status bar)
             var dot = this.FindControl<Border>("ConnectionIndicator");
             if (dot != null)
-                dot.Background = _vm.IsConnected
-                    ? new SolidColorBrush(Color.FromRgb(60, 200, 80))
-                    : new SolidColorBrush(Color.FromRgb(200, 60, 60));
+                dot.Background = _vm.IsConnected ? BrushSuccess : BrushDanger;
 
             if (snap == null) return;
 
+            // Time display in sidebar widget
             var timeText = this.FindControl<TextBlock>("TimeText");
             if (timeText != null)
             {
-                string pause = snap.IsPaused ? " ⏸" : "";
+                string pause = snap.IsPaused ? "  ⏸" : "";
                 timeText.Text = $"{snap.SimulatedTime:HH:mm}  {snap.TimeScale}×{pause}";
             }
 
-            var runwayText = this.FindControl<TextBlock>("RunwayText");
-            if (runwayText != null)
-            {
-                if (snap.Runways.Count >= 2)
-                {
-                    var arr = snap.Runways[0];
-                    var dep = snap.Runways[1];
-                    bool arrOcc = arr.Status == RunwayStatus.Occupied;
-                    bool depOcc = dep.Status == RunwayStatus.Occupied;
-                    runwayText.Text = $"{(arrOcc ? "28L ▐" : "28L ○")}  {(depOcc ? "28R ▐" : "28R ○")}";
-                    runwayText.Foreground = (arrOcc || depOcc)
-                        ? new SolidColorBrush(Color.FromRgb(220, 80, 60))
-                        : new SolidColorBrush(Color.FromRgb(80, 200, 100));
-                }
-                else
-                {
-                    bool occupied = snap.RunwayStatus == RunwayStatus.Occupied;
-                    runwayText.Text       = occupied ? "RWY ▐" : "RWY ○";
-                    runwayText.Foreground = occupied
-                        ? new SolidColorBrush(Color.FromRgb(220, 80, 60))
-                        : new SolidColorBrush(Color.FromRgb(80, 200, 100));
-                }
-            }
+            // Pause button label
+            var pauseBtn = this.FindControl<Button>("PauseButton");
+            if (pauseBtn != null)
+                pauseBtn.Content = snap.IsPaused ? "▶  RESUME SIMULATION" : "⏸  PAUSE SIMULATION";
 
+            // Weather label in sidebar
             var weatherText = this.FindControl<TextBlock>("WeatherText");
             if (weatherText != null) weatherText.Text = _vm.WeatherText;
 
-            var statsText = this.FindControl<TextBlock>("StatsText");
-            if (statsText != null)
-                statsText.Text =
-                    $"✈ {snap.ActiveAircraft.Count}  " +
-                    $"↓{snap.TotalArrivalsToday}  " +
-                    $"↑{snap.TotalDeparturesToay}  " +
-                    $"↩{snap.GoAroundsToday}";
+            // ── Runway chips ──────────────────────────────────────────────────
+            if (snap.Runways.Count >= 2)
+            {
+                UpdateRunwayChip(
+                    snap.Runways[0].Status == RunwayStatus.Occupied,
+                    "Rwy28LDot", "Rwy28LStatus",
+                    BrushSuccess, BrushDanger);
 
-            var pauseBtn = this.FindControl<Button>("PauseButton");
-            if (pauseBtn != null)
-                pauseBtn.Content = snap.IsPaused ? "▶ Resume" : "⏸ Pause";
+                UpdateRunwayChip(
+                    snap.Runways[1].Status == RunwayStatus.Occupied,
+                    "Rwy28RDot", "Rwy28RStatus",
+                    BrushPrimary, BrushDanger);
+            }
+            else if (snap.Runways.Count == 1)
+            {
+                bool occ = snap.RunwayStatus == RunwayStatus.Occupied;
+                UpdateRunwayChip(occ, "Rwy28LDot", "Rwy28LStatus", BrushSuccess, BrushDanger);
+            }
+
+            // ── Metric chips ──────────────────────────────────────────────────
+            SetText("ChipAircraft",   snap.ActiveAircraft.Count.ToString());
+            SetText("ChipArrivals",   snap.TotalArrivalsToday.ToString());
+            SetText("ChipDepartures", snap.TotalDeparturesToay.ToString());
+            SetText("ChipGoArounds",  snap.GoAroundsToday.ToString());
+
+            // Legacy targets (kept for backwards compat, now hidden)
+            SetText("RunwayText", "");
+            SetText("StatsText",  "");
 
             UpdateQueuePanel(snap);
             UpdateAircraftInfoPanel();
@@ -110,7 +119,26 @@ namespace AirportSim.Client.Views
                 UpdateDashboard();
         }
 
-        // ── NEW: Aircraft Info Popover ────────────────────────────────────────
+        private void UpdateRunwayChip(bool occupied, string dotName, string labelName,
+                                       SolidColorBrush clearBrush, SolidColorBrush occBrush)
+        {
+            var dot   = this.FindControl<Border>(dotName);
+            var label = this.FindControl<TextBlock>(labelName);
+            if (dot != null)   dot.Background = occupied ? occBrush : clearBrush;
+            if (label != null)
+            {
+                label.Text       = occupied ? "OCC" : "CLEAR";
+                label.Foreground = occupied ? occBrush : clearBrush;
+            }
+        }
+
+        private void SetText(string name, string value)
+        {
+            var tb = this.FindControl<TextBlock>(name);
+            if (tb != null) tb.Text = value;
+        }
+
+        // ── Aircraft info popover ─────────────────────────────────────────────
 
         private void UpdateAircraftInfoPanel()
         {
@@ -120,33 +148,43 @@ namespace AirportSim.Client.Views
             if (_vm?.SelectedAircraft != null)
             {
                 panel.IsVisible = true;
-                
-                var id = this.FindControl<TextBlock>("InfoFlightId");
-                if (id != null) id.Text = _vm.SelectedAircraft.FlightId;
+                var ac = _vm.SelectedAircraft;
 
-                var type = this.FindControl<TextBlock>("InfoType");
-                if (type != null) type.Text = _vm.SelectedAircraft.Type.ToString();
+                SetText("InfoFlightId", ac.FlightId);
+                SetText("InfoType",     ac.Type.ToString());
+                SetText("InfoPhase",    ac.Phase.ToString().ToUpper());
+                SetText("InfoAlt",      $"{ac.AltitudeFt:N0} ft");
+                SetText("InfoSpeed",    $"{ac.SpeedKts:N0} kts");
+                SetText("InfoGate",     string.IsNullOrEmpty(ac.AssignedGate) ? "—" : ac.AssignedGate);
 
-                var phase = this.FindControl<TextBlock>("InfoPhase");
-                if (phase != null) phase.Text = _vm.SelectedAircraft.Phase.ToString();
-
-                var alt = this.FindControl<TextBlock>("InfoAlt");
-                if (alt != null) alt.Text = $"{_vm.SelectedAircraft.AltitudeFt} ft";
-
-                var speed = this.FindControl<TextBlock>("InfoSpeed");
-                if (speed != null) speed.Text = $"{_vm.SelectedAircraft.SpeedKts} kts";
-
-                var gate = this.FindControl<TextBlock>("InfoGate");
-                if (gate != null) 
-                    gate.Text = string.IsNullOrEmpty(_vm.SelectedAircraft.AssignedGate) 
-                        ? "N/A" 
-                        : _vm.SelectedAircraft.AssignedGate;
+                // Color the phase pill by phase group
+                var pill = this.FindControl<Border>("InfoPhasePill");
+                var pillText = this.FindControl<TextBlock>("InfoPhase");
+                if (pill != null && pillText != null)
+                {
+                    var (bg, border, fg) = ac.Phase.ToString() switch
+                    {
+                        var p when p.Contains("Approach") || p.Contains("Landing") || p.Contains("Arrival")
+                            => (BrushSuccess, BrushSuccess, BrushSuccess),
+                        var p when p.Contains("Taxi") || p.Contains("Gate") || p.Contains("Boarding")
+                            => (BrushWarning, BrushWarning, BrushWarning),
+                        var p when p.Contains("Takeoff") || p.Contains("Climb") || p.Contains("Depart")
+                            => (BrushPrimary, BrushPrimary, BrushPrimary),
+                        var p when p.Contains("Emergency") || p.Contains("Mayday")
+                            => (BrushDanger, BrushDanger, BrushDanger),
+                        _ => (BrushInfo, BrushInfo, BrushInfo)
+                    };
+                    pill.BorderBrush     = border;
+                    pillText.Foreground  = fg;
+                }
             }
             else
             {
                 panel.IsVisible = false;
             }
         }
+
+        // ── Queue panel ───────────────────────────────────────────────────────
 
         private void UpdateQueuePanel(SimSnapshot snap)
         {
@@ -155,10 +193,10 @@ namespace AirportSim.Client.Views
 
             var lines = snap.QueuedFlights.Select(f =>
             {
-                string arrow = f.FlightType == FlightType.Arrival ? "↓" : "↑";
-                string type  = f.Type.ToString()[0].ToString();
-                string delay = f.DelayMinutes > 0 ? $" +{f.DelayMinutes}m" : "";
-                string route = f.FlightType == FlightType.Arrival
+                string arrow  = f.FlightType == FlightType.Arrival ? "↓" : "↑";
+                string type   = f.Type.ToString()[0].ToString();
+                string delay  = f.DelayMinutes > 0 ? $" +{f.DelayMinutes}m" : "";
+                string route  = f.FlightType == FlightType.Arrival
                     ? $"{f.Origin}→TLV"
                     : $"TLV→{f.Destination}";
                 return $"{arrow}{type}  {f.FlightId,-12} {route}{delay}";
@@ -179,9 +217,16 @@ namespace AirportSim.Client.Views
             var scroller = this.FindControl<ScrollViewer>("AlertScroller");
             scroller?.ScrollToHome();
 
+            // Update badge count
+            var badge = this.FindControl<TextBlock>("AlertCountBadge");
+            if (badge != null) badge.Text = _vm.AlertQueue.Count.ToString();
+
+            // Flash the button label if panel is closed
             var btn = this.FindControl<Button>("ToggleAlertsButton");
             if (btn != null && _vm.AlertQueue.Count > 0 && !_alertsVisible)
-                btn.Content = $"🔔 Alerts ({_vm.AlertQueue.Count})";
+                btn.Foreground = BrushDanger;
+            else if (btn != null)
+                btn.Foreground = BrushText;
         }
 
         // ── Emergency banner ──────────────────────────────────────────────────
@@ -192,10 +237,10 @@ namespace AirportSim.Client.Views
             var text   = this.FindControl<TextBlock>("EmergencyText");
             if (banner == null || text == null) return;
 
-            text.Text        = $"🚨 EMERGENCY  {flightId}  —  MAYDAY";
+            text.Text        = $"🚨  EMERGENCY  {flightId}  —  MAYDAY  MAYDAY";
             banner.IsVisible = true;
 
-            var hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+            var hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
             hideTimer.Tick += (_, _) =>
             {
                 if (_vm?.HasActiveEmergency != true) banner.IsVisible = false;
@@ -236,9 +281,7 @@ namespace AirportSim.Client.Views
             var panel = this.FindControl<Border>("QueuePanel");
             var btn   = this.FindControl<Button>("ToggleQueueButton");
             if (panel != null) panel.IsVisible = _queueVisible;
-            if (btn   != null) btn.Foreground  = _queueVisible
-                ? new SolidColorBrush(Color.FromRgb(100, 220, 120))
-                : new SolidColorBrush(Color.FromArgb(136, 204, 255, 170));
+            if (btn   != null) btn.Foreground  = _queueVisible ? BrushAccent : BrushText;
         }
 
         private void ToggleAlerts_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -247,19 +290,15 @@ namespace AirportSim.Client.Views
             var panel = this.FindControl<Border>("AlertPanel");
             var btn   = this.FindControl<Button>("ToggleAlertsButton");
             if (panel != null) panel.IsVisible = _alertsVisible;
-            if (btn   != null)
-            {
-                btn.Content    = _alertsVisible ? "🔔 Alerts" : $"🔔 Alerts ({_vm?.AlertQueue.Count ?? 0})";
-                btn.Foreground = _alertsVisible
-                    ? new SolidColorBrush(Color.FromRgb(120, 140, 255))
-                    : new SolidColorBrush(Color.FromArgb(136, 170, 187, 255));
-            }
+            if (btn   != null) btn.Foreground  = _alertsVisible ? BrushDanger : BrushText;
         }
 
         private void ClearAlerts_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
-            var list = this.FindControl<ItemsControl>("AlertList");
-            if (list != null) list.ItemsSource = new List<string>();
+            var list  = this.FindControl<ItemsControl>("AlertList");
+            var badge = this.FindControl<TextBlock>("AlertCountBadge");
+            if (list  != null) list.ItemsSource = new List<string>();
+            if (badge != null) badge.Text = "0";
         }
 
         private void ToggleDashboard_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -268,114 +307,9 @@ namespace AirportSim.Client.Views
             var panel = this.FindControl<Border>("DashboardPanel");
             var btn   = this.FindControl<Button>("ToggleDashboardButton");
             if (panel != null) panel.IsVisible = _dashboardVisible;
-            if (btn   != null)
-                btn.Foreground = _dashboardVisible
-                    ? new SolidColorBrush(Color.FromRgb(100, 200, 255))
-                    : new SolidColorBrush(Color.FromArgb(136, 204, 221, 255));
+            if (btn   != null) btn.Foreground  = _dashboardVisible ? BrushSuccess : BrushText;
             if (_dashboardVisible) UpdateDashboard();
         }
-
-        private void UpdateDashboard()
-        {
-            if (_vm == null) return;
-
-            // ── Traffic graph ─────────────────────────────────────────────────
-            var canvas = this.FindControl<Canvas>("TrafficGraphCanvas");
-            if (canvas != null)
-            {
-                canvas.Children.Clear();
-                var history = _vm.TrafficHistory;
-                int    n    = history.Count;
-                double cw   = canvas.Bounds.Width  > 0 ? canvas.Bounds.Width  : 300;
-                double ch   = canvas.Bounds.Height > 0 ? canvas.Bounds.Height : 60;
-                int maxVal  = 1;
-                for (int i = 0; i < n; i++)
-                    if (history[i].Count > maxVal) maxVal = history[i].Count;
-
-                double barW = n > 0 ? cw / Math.Max(n, 1) - 2 : cw;
-                for (int i = 0; i < n; i++)
-                {
-                    double fraction = maxVal > 0 ? (double)history[i].Count / maxVal : 0;
-                    double barH     = Math.Max(2, fraction * (ch - 4));
-                    double bx       = i * (cw / Math.Max(n, 1));
-                    double by       = ch - barH - 2;
-
-                    byte r  = (byte)(fraction > 0.7 ? 220 : fraction > 0.4 ? 200 : 60);
-                    byte g2 = (byte)(fraction > 0.7 ? 100 : fraction > 0.4 ? 170 : 180);
-
-                    var rect = new Rectangle
-                    {
-                        Width   = Math.Max(barW, 2),
-                        Height  = barH,
-                        Fill    = new SolidColorBrush(Color.FromArgb(200, r, g2, 60)),
-                        RadiusX = 2,
-                        RadiusY = 2
-                    };
-                    Canvas.SetLeft(rect, bx + 1);
-                    Canvas.SetTop(rect, by);
-                    canvas.Children.Add(rect);
-                }
-
-                if (n > 0)
-                {
-                    var lbl = new Avalonia.Controls.TextBlock
-                    {
-                        Text       = $"{history[^1].Count} ac",
-                        FontSize   = 9,
-                        Foreground = new SolidColorBrush(Color.FromArgb(180, 200, 220, 255))
-                    };
-                    Canvas.SetRight(lbl, 2);
-                    Canvas.SetTop(lbl, 2);
-                    canvas.Children.Add(lbl);
-                }
-            }
-
-            // ── Go-arounds by weather ─────────────────────────────────────────
-            var goList = this.FindControl<ItemsControl>("GoAroundList");
-            if (goList != null)
-            {
-                var rows = _vm.GoAroundsByWeather
-                    .Select(kv => new
-                    {
-                        Label = WeatherLabel(kv.Key),
-                        Value = $"{kv.Value,4}"
-                    })
-                    .ToList();
-                goList.ItemsSource = rows;
-            }
-
-            // ── Runway utilisation bars ───────────────────────────────────────
-            UpdateUtilBar("Rwy0Bar", _vm.Runway0Utilisation);
-            UpdateUtilBar("Rwy1Bar", _vm.Runway1Utilisation);
-        }
-
-        private void UpdateUtilBar(string barName, double fraction)
-        {
-            var bar    = this.FindControl<Border>(barName);
-            var parent = bar?.Parent as Border;
-            if (bar == null || parent == null) return;
-
-            double maxW = parent.Bounds.Width > 0
-                ? parent.Bounds.Width - parent.Padding.Left - parent.Padding.Right
-                : 300;
-            bar.Width = Math.Clamp(fraction * maxW, 0, maxW);
-
-            bar.Background = fraction < 0.6
-                ? new SolidColorBrush(Color.FromRgb(76,  175, 80))
-                : fraction < 0.85
-                    ? new SolidColorBrush(Color.FromRgb(255, 180, 30))
-                    : new SolidColorBrush(Color.FromRgb(220, 60,  60));
-        }
-
-        private static string WeatherLabel(WeatherCondition w) => w switch
-        {
-            WeatherCondition.Clear  => "☀  Clear ",
-            WeatherCondition.Cloudy => "⛅ Cloudy",
-            WeatherCondition.Rain   => "🌧 Rain  ",
-            WeatherCondition.Fog    => "🌫 Fog   ",
-            WeatherCondition.Storm  => "⛈ Storm ",
-            _                       => w.ToString()
-        };
 
         private void ToggleRadar_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
@@ -383,10 +317,172 @@ namespace AirportSim.Client.Views
             var canvas = this.FindControl<AirportSim.Client.Rendering.AirportCanvas>("SimCanvas");
             if (canvas != null) canvas.RadarVisible = _radarVisible;
             var btn = this.FindControl<Button>("ToggleRadarButton");
-            if (btn != null)
-                btn.Foreground = _radarVisible
-                    ? new SolidColorBrush(Color.FromRgb(0, 220, 120))
-                    : new SolidColorBrush(Color.FromArgb(136, 170, 255, 204));
+            if (btn != null) btn.Foreground = _radarVisible ? BrushPrimary : BrushText;
         }
+
+        // ── Dashboard ─────────────────────────────────────────────────────────
+
+        private void UpdateDashboard()
+{
+    if (_vm == null) return;
+
+    // ── Traffic graph — line chart with filled area ───────────────────────
+    var graphCanvas = this.FindControl<Canvas>("TrafficGraphCanvas");
+    if (graphCanvas != null)
+    {
+        graphCanvas.Children.Clear();
+        var history = _vm.TrafficHistory;
+        int    n    = history.Count;
+        double cw   = graphCanvas.Bounds.Width  > 0 ? graphCanvas.Bounds.Width  : 300;
+        double ch   = graphCanvas.Bounds.Height > 0 ? graphCanvas.Bounds.Height : 65;
+        int maxVal  = Math.Max(1, n > 0 ? history.Max(h => h.Count) : 1);
+
+        // Subtle horizontal grid lines at 25 / 50 / 75 %
+        foreach (double pctLine in new[] { 0.25, 0.5, 0.75 })
+        {
+            double gy = ch - pctLine * (ch - 8) - 4;
+            var gridLine = new Line
+            {
+                StartPoint = new Avalonia.Point(0,  gy),
+                EndPoint   = new Avalonia.Point(cw, gy),
+                Stroke     = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)),
+                StrokeThickness = 1
+            };
+            graphCanvas.Children.Add(gridLine);
+        }
+
+        if (n >= 2)
+        {
+            // Build point list
+            var pts = new List<Avalonia.Point>();
+            for (int i = 0; i < n; i++)
+            {
+                double fraction = (double)history[i].Count / maxVal;
+                double px = i * cw / (n - 1);
+                double py = ch - 4 - fraction * (ch - 8);
+                pts.Add(new Avalonia.Point(px, py));
+            }
+
+            // Filled area polygon (line pts + bottom corners)
+            var polyPts = new Avalonia.Collections.AvaloniaList<Avalonia.Point>(pts);
+            polyPts.Add(new Avalonia.Point(pts[^1].X, ch));
+            polyPts.Add(new Avalonia.Point(pts[0].X,  ch));
+
+            var area = new Polygon
+            {
+                Points  = polyPts,
+                Fill    = new SolidColorBrush(Color.FromArgb(40, 0, 217, 245)),
+                Stroke  = Brushes.Transparent,
+            };
+            graphCanvas.Children.Add(area);
+
+            // Line itself
+var polyLine = new Polyline
+{
+    Points          = new Avalonia.Collections.AvaloniaList<Avalonia.Point>(pts),
+    Stroke          = new SolidColorBrush(Color.FromArgb(220, 0, 217, 245)),
+    StrokeThickness = 1.5,
+    StrokeLineCap   = PenLineCap.Round,
+    StrokeJoin      = PenLineJoin.Round, // <-- Changed from StrokeLineJoin to StrokeJoin
+};
+            graphCanvas.Children.Add(polyLine);
+
+            // Dot at latest point
+            var lastPt = pts[^1];
+            double load = n > 0 ? (double)history[^1].Count / maxVal : 0;
+            Color dotColor = load > 0.75 ? Color.FromRgb(239, 68, 68)
+                : load > 0.45            ? Color.FromRgb(245, 158, 11)
+                                         : Color.FromRgb(0, 217, 245);
+
+            var dot = new Ellipse
+            {
+                Width  = 7, Height = 7,
+                Fill   = new SolidColorBrush(dotColor),
+            };
+            Canvas.SetLeft(dot, lastPt.X - 3.5);
+            Canvas.SetTop(dot,  lastPt.Y - 3.5);
+            graphCanvas.Children.Add(dot);
+        }
+
+        // Peak label top-right
+        if (n > 0)
+        {
+            var lbl = new TextBlock
+            {
+                Text       = $"peak {maxVal} ac",
+                FontSize   = 9,
+                Foreground = new SolidColorBrush(Color.FromArgb(140, 0, 217, 245))
+            };
+            Canvas.SetRight(lbl, 4);
+            Canvas.SetTop(lbl,   3);
+            graphCanvas.Children.Add(lbl);
+
+            // Current count bottom-right
+            var cur = new TextBlock
+            {
+                Text       = $"now  {history[^1].Count} ac",
+                FontSize   = 9,
+                FontWeight = Avalonia.Media.FontWeight.Bold,
+                Foreground = new SolidColorBrush(Color.FromArgb(200, 0, 217, 245))
+            };
+            Canvas.SetRight(cur, 4);
+            Canvas.SetBottom(cur, 3);
+            graphCanvas.Children.Add(cur);
+        }
+    }
+
+    // ── Go-arounds by weather ─────────────────────────────────────────────
+    var goList = this.FindControl<ItemsControl>("GoAroundList");
+    if (goList != null)
+    {
+        var rows = _vm.GoAroundsByWeather
+            .Select(kv => new { Label = WeatherLabel(kv.Key), Value = $"{kv.Value,4}" })
+            .ToList();
+        goList.ItemsSource = rows;
+    }
+
+    // ── Runway utilisation bars + percentage labels ────────────────────────
+    UpdateUtilBar("Rwy0Bar", "Rwy0Pct", _vm.Runway0Utilisation);
+    UpdateUtilBar("Rwy1Bar", "Rwy1Pct", _vm.Runway1Utilisation);
+}
+
+        private void UpdateUtilBar(string barName, string pctName, double fraction)
+        {
+            var bar    = this.FindControl<Border>(barName);
+            var parent = bar?.Parent as Border;
+            var pct    = this.FindControl<TextBlock>(pctName);
+
+            if (bar == null || parent == null) return;
+
+            double maxW = parent.Bounds.Width > 0
+                ? parent.Bounds.Width - parent.Padding.Left - parent.Padding.Right
+                : 300;
+
+            bar.Width = Math.Clamp(fraction * maxW, 0, maxW);
+
+            SolidColorBrush barColor = fraction < 0.60 ? BrushSuccess
+                : fraction < 0.85 ? BrushWarning
+                : BrushDanger;
+
+            bar.Background = barColor;
+            if (pct != null)
+            {
+                pct.Text       = $"{fraction * 100:F0}%";
+                pct.Foreground = barColor;
+            }
+        }
+
+        private static string WeatherLabel(WeatherCondition w) => w switch
+        {
+            WeatherCondition.Clear  => "☀  Clear",
+            WeatherCondition.Cloudy => "⛅ Cloudy",
+            WeatherCondition.Rain   => "🌧 Rain",
+            WeatherCondition.Fog    => "🌫 Fog",
+            WeatherCondition.Storm  => "⛈ Storm",
+            _                       => w.ToString()
+        };
+
+        // Accent brush referenced in toggle handlers
+        private static readonly SolidColorBrush BrushAccent = new(Color.FromRgb(255, 176, 32));
     }
 }

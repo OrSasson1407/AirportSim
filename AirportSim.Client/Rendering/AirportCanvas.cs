@@ -27,7 +27,7 @@ namespace AirportSim.Client.Rendering
         private double _emergencyFlashAccumMs;
         private const double EmergencyFlashIntervalMs = 400;
 
-        // Radar toggle — press R or click the radar button
+        // Radar toggle
         private bool _radarVisible = false;
 
         public bool RadarVisible
@@ -51,7 +51,7 @@ namespace AirportSim.Client.Rendering
             _renderTimer.Start();
         }
 
-        // ── NEW: Click Detection ──────────────────────────────────────────────
+        // Click detection for aircraft selection
         protected override void OnPointerPressed(PointerPressedEventArgs e)
         {
             base.OnPointerPressed(e);
@@ -60,14 +60,13 @@ namespace AirportSim.Client.Rendering
 
             var point = e.GetPosition(this);
             
-            // Reverse the scaling to get world coordinates
             double scaleX = Bounds.Width  / 2000.0;
             double scaleY = Bounds.Height / 600.0;
 
             double worldX = point.X / scaleX;
             double worldY = point.Y / scaleY;
 
-            double minDistance = 40.0; // Click radius in world units
+            double minDistance = 40.0;
             string? clickedId = null;
 
             foreach (var ac in _viewModel.TargetSnapshot.ActiveAircraft)
@@ -87,7 +86,6 @@ namespace AirportSim.Client.Rendering
                 }
             }
 
-            // Tell the ViewModel what we clicked (or null if we clicked empty sky)
             _viewModel.SelectAircraft(clickedId);
         }
 
@@ -99,7 +97,6 @@ namespace AirportSim.Client.Rendering
             double   realDeltaMs = (now - _lastRenderTime).TotalMilliseconds;
             _lastRenderTime      = now;
 
-            // ── No data yet ───────────────────────────────────────────────────
             if (_viewModel?.TargetSnapshot == null)
             {
                 ctx.FillRectangle(Brushes.Black, Bounds);
@@ -114,7 +111,7 @@ namespace AirportSim.Client.Rendering
             double scaleX = Bounds.Width  / 2000.0;
             double scaleY = Bounds.Height / 600.0;
 
-            // ── Main world view ───────────────────────────────────────────────
+            // Main world view
             using (ctx.PushTransform(Matrix.CreateScale(scaleX, scaleY)))
             {
                 _sky.Render(ctx, snap);
@@ -123,7 +120,10 @@ namespace AirportSim.Client.Rendering
                 _aircraft.Render(ctx, _viewModel.PreviousSnapshot, snap, t);
             }
 
-            // ── Radar overlay (screen-space, top-right corner) ────────────────
+            // +++++++++ NEW: Selection glow +++++++++
+            DrawSelectionGlow(ctx, snap, t, scaleX, scaleY);
+
+            // Radar overlay (screen-space)
             if (_radarVisible)
             {
                 double radarSize = Math.Min(Bounds.Width * 0.28, 240);
@@ -138,7 +138,7 @@ namespace AirportSim.Client.Rendering
                     new Rect(rx, ry, radarSize, radarSize));
             }
 
-            // ── Emergency flash overlay ───────────────────────────────────────
+            // Emergency flash overlay
             if (_viewModel.HasActiveEmergency)
             {
                 _emergencyFlashAccumMs += realDeltaMs;
@@ -163,6 +163,28 @@ namespace AirportSim.Client.Rendering
             {
                 _emergencyFlash        = false;
                 _emergencyFlashAccumMs = 0;
+            }
+        }
+
+        // +++ NEW: Draw a glowing ring around the selected aircraft +++
+        private void DrawSelectionGlow(DrawingContext ctx, SimSnapshot snap, double t, double scaleX, double scaleY)
+        {
+            if (_viewModel?.SelectedAircraft == null) return;
+            var selected = _viewModel.SelectedAircraft;
+            var pos = _viewModel.GetInterpolatedPosition(selected.FlightId);
+            if (pos == null) return;
+
+            // Convert world coords to screen coords
+            double sx = pos.Value.x * scaleX;
+            double sy = pos.Value.y * scaleY;
+
+            // Three concentric rings with decreasing opacity
+            for (int i = 0; i < 3; i++)
+            {
+                double radius = 24 + i * 5;
+                byte alpha = (byte)(140 - i * 40);
+                var pen = new Pen(new SolidColorBrush(Color.FromArgb(alpha, 80, 180, 255)), 2.5 - i * 0.8);
+                ctx.DrawEllipse(null, pen, new Point(sx, sy), radius, radius);
             }
         }
 

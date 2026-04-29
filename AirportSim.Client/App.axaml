@@ -2,19 +2,66 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="AirportSim.Client.App"
              RequestedThemeVariant="Dark">
-             <!-- Forced to Dark mode for the ATC Radar visual style -->
 
     <Application.Styles>
         <FluentTheme />
     </Application.Styles>
 
-    <!-- Global Design System Colors -->
+    <!-- ═══════════════════════════════════════════════════════════════════
+         ATC TERMINAL — GLOBAL DESIGN SYSTEM  (v2 — final)
+    ═══════════════════════════════════════════════════════════════════ -->
     <Application.Resources>
-        <SolidColorBrush x:Key="AtcBackground">#0B0E14</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcGlass">#CC11151E</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcPrimary">#00E5FF</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcAccent">#FFAB00</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcTextMuted">#8A9AAB</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcBorderLine">#33FFFFFF</SolidColorBrush>
+
+        <!-- ── Base backgrounds ──────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcBackground">#080B10</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSidebar">#0D1119</SolidColorBrush>
+
+        <!-- ── Surface hierarchy ─────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcSurface0">#070A0F</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSurface1">#111620</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSurface2">#151B27</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSurface3">#1C2535</SolidColorBrush>
+
+        <!-- ── Glass overlays ────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcGlass">#E0111620</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcGlassLight">#BB151B27</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcGlassDark">#CC070A0F</SolidColorBrush>
+
+        <!-- ── Brand colours ─────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcPrimary">#00D9F5</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcPrimaryDim">#1A4A5A</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcAccent">#FFB020</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcAccentGlow">#FFCC60</SolidColorBrush>
+
+        <!-- ── Text colours ──────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcText">#E8EDF5</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcTextSub">#A0AEBF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcTextMuted">#5A6A7A</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcTextDisabled">#2E3A4A</SolidColorBrush>
+
+        <!-- ── Border colours ────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcBorderSubtle">#14FFFFFF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcBorderLine">#28FFFFFF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcBorderStrong">#4400D9F5</SolidColorBrush>
+
+        <!-- ── Status colours ────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcSuccess">#22C55E</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSuccessDim">#0D2B1A</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcWarning">#F59E0B</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcWarningDim">#2A1E06</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcDanger">#EF4444</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcDangerDim">#2D0A0A</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcInfo">#3B82F6</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcInfoDim">#0A1630</SolidColorBrush>
+
+        <!-- ── Runway colours ────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcRunwayArrival">#22C55E</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcRunwayDeparture">#00D9F5</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcRunwayOccupied">#EF4444</SolidColorBrush>
+
+        <!-- ── Chart colours ─────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcGraphLine">#DC00D9F5</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcGraphFill">#2800D9F5</SolidColorBrush>
+
     </Application.Resources>
 </Application>
