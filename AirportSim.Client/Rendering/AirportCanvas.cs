@@ -1,6 +1,7 @@
 using System;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Threading;
 using AirportSim.Client.ViewModels;
@@ -50,6 +51,46 @@ namespace AirportSim.Client.Rendering
             _renderTimer.Start();
         }
 
+        // ── NEW: Click Detection ──────────────────────────────────────────────
+        protected override void OnPointerPressed(PointerPressedEventArgs e)
+        {
+            base.OnPointerPressed(e);
+
+            if (_viewModel?.TargetSnapshot == null) return;
+
+            var point = e.GetPosition(this);
+            
+            // Reverse the scaling to get world coordinates
+            double scaleX = Bounds.Width  / 2000.0;
+            double scaleY = Bounds.Height / 600.0;
+
+            double worldX = point.X / scaleX;
+            double worldY = point.Y / scaleY;
+
+            double minDistance = 40.0; // Click radius in world units
+            string? clickedId = null;
+
+            foreach (var ac in _viewModel.TargetSnapshot.ActiveAircraft)
+            {
+                var pos = _viewModel.GetInterpolatedPosition(ac.FlightId);
+                if (pos != null)
+                {
+                    double dx = pos.Value.x - worldX;
+                    double dy = pos.Value.y - worldY;
+                    double dist = Math.Sqrt(dx * dx + dy * dy);
+
+                    if (dist < minDistance)
+                    {
+                        minDistance = dist;
+                        clickedId = ac.FlightId;
+                    }
+                }
+            }
+
+            // Tell the ViewModel what we clicked (or null if we clicked empty sky)
+            _viewModel.SelectAircraft(clickedId);
+        }
+
         public override void Render(DrawingContext ctx)
         {
             base.Render(ctx);
@@ -76,7 +117,7 @@ namespace AirportSim.Client.Rendering
             // ── Main world view ───────────────────────────────────────────────
             using (ctx.PushTransform(Matrix.CreateScale(scaleX, scaleY)))
             {
-                _sky.Render(ctx, snap.SimulatedTime, weather);
+                _sky.Render(ctx, snap);
                 _ground.Render(ctx, snap.SimulatedTime, weather, snap.ActiveAircraft, realDeltaMs);
                 _runway.Render(ctx, snap.SimulatedTime, weather, realDeltaMs);
                 _aircraft.Render(ctx, _viewModel.PreviousSnapshot, snap, t);

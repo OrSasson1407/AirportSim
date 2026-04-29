@@ -121,6 +121,47 @@
                            HorizontalAlignment="Center"/>
             </Border>
 
+            <!-- ── NEW: Aircraft Info Popover (bottom-left overlay) ── -->
+            <Border x:Name="AircraftInfoPanel"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Bottom"
+                    Margin="8,0,0,8"
+                    Width="220"
+                    Background="#EE0A0C18"
+                    CornerRadius="6"
+                    BorderThickness="1"
+                    BorderBrush="#44FFFFFF"
+                    IsVisible="False">
+                <Grid RowDefinitions="Auto, Auto">
+                    <Border Grid.Row="0" Background="#331A1C28" CornerRadius="5,5,0,0" Padding="10,6">
+                        <TextBlock x:Name="InfoFlightId" Text="FLIGHT ID" FontSize="14" FontWeight="Bold" Foreground="#4CAF50"/>
+                    </Border>
+                    <!-- FIX APPLIED HERE: Changed Padding="10" to Margin="10" -->
+                    <StackPanel Grid.Row="1" Margin="10" Spacing="6">
+                        <Grid ColumnDefinitions="*, *">
+                            <TextBlock Text="TYPE:" FontSize="10" Foreground="#88AABBCC"/>
+                            <TextBlock x:Name="InfoType" Grid.Column="1" Text="-" FontSize="11" Foreground="White" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*, *">
+                            <TextBlock Text="PHASE:" FontSize="10" Foreground="#88AABBCC"/>
+                            <TextBlock x:Name="InfoPhase" Grid.Column="1" Text="-" FontSize="11" Foreground="White" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*, *">
+                            <TextBlock Text="ALTITUDE:" FontSize="10" Foreground="#88AABBCC"/>
+                            <TextBlock x:Name="InfoAlt" Grid.Column="1" Text="-" FontSize="11" Foreground="White" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*, *">
+                            <TextBlock Text="SPEED:" FontSize="10" Foreground="#88AABBCC"/>
+                            <TextBlock x:Name="InfoSpeed" Grid.Column="1" Text="-" FontSize="11" Foreground="White" HorizontalAlignment="Right"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*, *">
+                            <TextBlock Text="GATE:" FontSize="10" Foreground="#88AABBCC"/>
+                            <TextBlock x:Name="InfoGate" Grid.Column="1" Text="-" FontSize="11" Foreground="White" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
             <!-- ── Stats Dashboard panel (bottom-right overlay) ── -->
             <Border x:Name="DashboardPanel"
                     HorizontalAlignment="Right"
@@ -188,7 +229,7 @@
                                        Margin="0,0,0,4"/>
                             <ItemsControl x:Name="GoAroundList" Grid.Row="1">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
+                                    <DataTemplate x:CompileBindings="False">
                                         <Grid ColumnDefinitions="*,Auto" Margin="0,1">
                                             <TextBlock Grid.Column="0"
                                                        Text="{Binding Label}"

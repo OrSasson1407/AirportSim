@@ -19,6 +19,9 @@ namespace AirportSim.Client.ViewModels
 
         public bool IsConnected { get; private set; }
 
+        // NEW: Track the currently selected aircraft
+        public AircraftState? SelectedAircraft { get; private set; }
+
         // ── Alert queue ───────────────────────────────────────────────────────
         private readonly List<string> _alertQueue = new();
         private const int AlertQueueMax = 30;
@@ -98,6 +101,18 @@ namespace AirportSim.Client.ViewModels
             return (x, y, heading);
         }
 
+        // ── NEW: Selection Handling ───────────────────────────────────────────
+
+        public void SelectAircraft(string? flightId)
+        {
+            if (flightId == null)
+                SelectedAircraft = null;
+            else
+                SelectedAircraft = TargetSnapshot?.ActiveAircraft.FirstOrDefault(a => a.FlightId == flightId);
+            
+            Dispatcher.UIThread.Post(() => StateChanged?.Invoke());
+        }
+
         // ── Handlers ──────────────────────────────────────────────────────────
 
         private void HandleNewSnapshot(SimSnapshot snapshot)
@@ -105,6 +120,12 @@ namespace AirportSim.Client.ViewModels
             PreviousSnapshot = TargetSnapshot ?? snapshot;
             TargetSnapshot   = snapshot;
             LastSnapshotTime = DateTime.UtcNow;
+
+            // NEW: Keep the selected aircraft data fresh as it moves
+            if (SelectedAircraft != null)
+            {
+                SelectedAircraft = snapshot.ActiveAircraft.FirstOrDefault(a => a.FlightId == SelectedAircraft.FlightId);
+            }
 
             foreach (var alert in snapshot.RecentAlerts)
                 if (!_alertQueue.Contains(alert))

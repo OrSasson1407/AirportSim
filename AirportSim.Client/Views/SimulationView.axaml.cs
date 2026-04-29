@@ -104,9 +104,48 @@ namespace AirportSim.Client.Views
                 pauseBtn.Content = snap.IsPaused ? "▶ Resume" : "⏸ Pause";
 
             UpdateQueuePanel(snap);
+            UpdateAircraftInfoPanel();
 
             if (_dashboardVisible)
                 UpdateDashboard();
+        }
+
+        // ── NEW: Aircraft Info Popover ────────────────────────────────────────
+
+        private void UpdateAircraftInfoPanel()
+        {
+            var panel = this.FindControl<Border>("AircraftInfoPanel");
+            if (panel == null) return;
+
+            if (_vm?.SelectedAircraft != null)
+            {
+                panel.IsVisible = true;
+                
+                var id = this.FindControl<TextBlock>("InfoFlightId");
+                if (id != null) id.Text = _vm.SelectedAircraft.FlightId;
+
+                var type = this.FindControl<TextBlock>("InfoType");
+                if (type != null) type.Text = _vm.SelectedAircraft.Type.ToString();
+
+                var phase = this.FindControl<TextBlock>("InfoPhase");
+                if (phase != null) phase.Text = _vm.SelectedAircraft.Phase.ToString();
+
+                var alt = this.FindControl<TextBlock>("InfoAlt");
+                if (alt != null) alt.Text = $"{_vm.SelectedAircraft.AltitudeFt} ft";
+
+                var speed = this.FindControl<TextBlock>("InfoSpeed");
+                if (speed != null) speed.Text = $"{_vm.SelectedAircraft.SpeedKts} kts";
+
+                var gate = this.FindControl<TextBlock>("InfoGate");
+                if (gate != null) 
+                    gate.Text = string.IsNullOrEmpty(_vm.SelectedAircraft.AssignedGate) 
+                        ? "N/A" 
+                        : _vm.SelectedAircraft.AssignedGate;
+            }
+            else
+            {
+                panel.IsVisible = false;
+            }
         }
 
         private void UpdateQueuePanel(SimSnapshot snap)
