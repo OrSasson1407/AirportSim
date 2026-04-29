@@ -11,26 +11,23 @@ namespace AirportSim.Server.Simulation
         private double _timeInCurrentPhaseMs;
         private readonly Random _rand = new();
 
-        // NEW: probability of a go-around per approach, modified by weather
         public double GoAroundChance { get; set; } = 0.08;
-
-        // NEW: marks the aircraft as fully done and ready for removal
         public bool IsFinished { get; private set; }
 
         public Aircraft(FlightEvent flightEvent)
         {
             State = new AircraftState
             {
-                FlightId     = flightEvent.FlightId,
-                Type         = flightEvent.Type,
-                FlightType   = flightEvent.FlightType,
-                Phase        = flightEvent.FlightType == FlightType.Arrival
-                                   ? AircraftPhase.Approaching
-                                   : AircraftPhase.Parked,
+                FlightId      = flightEvent.FlightId,
+                Type          = flightEvent.Type,
+                FlightType    = flightEvent.FlightType,
+                Phase         = flightEvent.FlightType == FlightType.Arrival
+                                    ? AircraftPhase.Approaching
+                                    : AircraftPhase.Parked,
                 PhaseProgress = 0.0,
-                Position     = new SimPoint(0, 0),
-                Heading      = 0,
-                Status       = AircraftStatus.Normal,
+                Position      = new SimPoint(0, 0),
+                Heading       = 0,
+                Status        = AircraftStatus.Normal,
                 GoAroundCount = 0
             };
 
@@ -42,31 +39,31 @@ namespace AirportSim.Server.Simulation
         {
             if (IsFinished) return;
 
-            // ── Holding: wait for runway to clear ────────────────────────────
+            // ── Holding: wait for the DEPARTURE runway to clear ───────────────
             if (State.Phase == AircraftPhase.Holding)
             {
-                if (runway.TryOccupy(State.FlightId))
+                if (runway.TryOccupyDeparture(State.FlightId))
                     AdvancePhase();
                 return;
             }
 
-            // ── OnFinal: request runway at 90% progress ───────────────────────
+            // ── OnFinal: request the ARRIVAL runway at 90% progress ───────────
             if (State.Phase == AircraftPhase.OnFinal && State.PhaseProgress > 0.9)
             {
-                if (!runway.TryOccupy(State.FlightId))
+                if (!runway.TryOccupyArrival(State.FlightId))
                     return;
             }
 
-            // ── GoAround: no runway interaction, just climb and recycle ───────
+            // ── GoAround: no runway interaction, just climb and recycle ────────
             if (State.Phase == AircraftPhase.GoAround)
             {
                 _timeInCurrentPhaseMs += simDeltaMs;
-                State.PhaseProgress = Math.Clamp(_timeInCurrentPhaseMs / _phaseDurationMs, 0.0, 1.0);
+                State.PhaseProgress = Math.Clamp(
+                    _timeInCurrentPhaseMs / _phaseDurationMs, 0.0, 1.0);
                 UpdatePositionAndHeading();
 
                 if (State.PhaseProgress >= 1.0)
                 {
-                    // Recycle back to Approaching for another attempt
                     State.Phase           = AircraftPhase.Approaching;
                     State.Status          = AircraftStatus.Normal;
                     _timeInCurrentPhaseMs = 0;
@@ -78,7 +75,8 @@ namespace AirportSim.Server.Simulation
 
             // ── Normal tick ───────────────────────────────────────────────────
             _timeInCurrentPhaseMs += simDeltaMs;
-            State.PhaseProgress = Math.Clamp(_timeInCurrentPhaseMs / _phaseDurationMs, 0.0, 1.0);
+            State.PhaseProgress = Math.Clamp(
+                _timeInCurrentPhaseMs / _phaseDurationMs, 0.0, 1.0);
 
             UpdatePositionAndHeading();
             UpdateAltitudeAndSpeed();
@@ -87,11 +85,10 @@ namespace AirportSim.Server.Simulation
                 AdvancePhase(runway);
         }
 
-        // NEW: called by SimulationEngine to flag this aircraft as an emergency
         public void DeclareEmergency()
         {
-            State.Status = AircraftStatus.Emergency;
-            GoAroundChance = 0.0;   // emergencies always land
+            State.Status   = AircraftStatus.Emergency;
+            GoAroundChance = 0.0;
         }
 
         // ── Phase transitions ─────────────────────────────────────────────────
@@ -117,12 +114,11 @@ namespace AirportSim.Server.Simulation
                     break;
 
                 case AircraftPhase.OnFinal:
-                    // NEW: roll the dice for a go-around
                     if (State.GoAroundCount < 2 && _rand.NextDouble() < GoAroundChance)
                     {
-                        runway?.Release(State.FlightId);
-                        State.Phase        = AircraftPhase.GoAround;
-                        State.Status       = AircraftStatus.GoAround;
+                        runway?.ReleaseArrival(State.FlightId);
+                        State.Phase         = AircraftPhase.GoAround;
+                        State.Status        = AircraftStatus.GoAround;
                         State.GoAroundCount++;
                     }
                     else
@@ -136,7 +132,7 @@ namespace AirportSim.Server.Simulation
                     break;
 
                 case AircraftPhase.Rollout:
-                    runway?.Release(State.FlightId);
+                    runway?.ReleaseArrival(State.FlightId);
                     State.Phase = AircraftPhase.Taxiing;
                     break;
 
@@ -167,7 +163,7 @@ namespace AirportSim.Server.Simulation
                     break;
 
                 case AircraftPhase.Takeoff:
-                    runway?.Release(State.FlightId);
+                    runway?.ReleaseDeparture(State.FlightId);
                     State.Phase = AircraftPhase.Climbing;
                     break;
 
@@ -194,12 +190,12 @@ namespace AirportSim.Server.Simulation
             {
                 AircraftPhase.Approaching => 5.0,
                 AircraftPhase.OnFinal     => 2.0,
-                AircraftPhase.GoAround    => 3.0,   // NEW: climb-out + reposition
+                AircraftPhase.GoAround    => 3.0,
                 AircraftPhase.Landing     => 0.5,
                 AircraftPhase.Rollout     => 1.0,
                 AircraftPhase.Taxiing     => 2.0,
                 AircraftPhase.Parked      => 20.0,
-                AircraftPhase.Holding     => 0.0,   // waits for runway — no timer
+                AircraftPhase.Holding     => 0.0,
                 AircraftPhase.Takeoff     => 0.5,
                 AircraftPhase.Climbing    => 3.0,
                 AircraftPhase.Departed    => 0.0,
@@ -218,55 +214,56 @@ namespace AirportSim.Server.Simulation
 
             switch (State.Phase)
             {
+                // ── Arrivals use the bottom strip (Y ≈ 520) ──────────────────
                 case AircraftPhase.Approaching:
                     (startX, startY, endX, endY) = (2200, 100, 1600, 300);
-                    State.Heading = 180 + 45;   // coming in from right, descending
+                    State.Heading = 180 + 45;
                     break;
 
                 case AircraftPhase.OnFinal:
-                    (startX, startY, endX, endY) = (1600, 300, 1400, 480);
+                    (startX, startY, endX, endY) = (1600, 300, 1400, 520);
                     State.Heading = 225;
                     break;
 
-                // NEW: go-around climbs back out to the right
                 case AircraftPhase.GoAround:
-                    (startX, startY, endX, endY) = (1400, 480, 2200, 100);
+                    (startX, startY, endX, endY) = (1400, 520, 2200, 100);
                     State.Heading = 45;
                     break;
 
                 case AircraftPhase.Landing:
                 case AircraftPhase.Rollout:
-                    (startX, startY, endX, endY) = (1400, 480, 600, 480);
+                    (startX, startY, endX, endY) = (1400, 520, 600, 520);
                     State.Heading = 270;
                     break;
 
                 case AircraftPhase.Taxiing when State.FlightType == FlightType.Arrival:
-                    (startX, startY, endX, endY) = (600, 480, 300, 380);
+                    (startX, startY, endX, endY) = (600, 520, 300, 400);
                     State.Heading = 315;
                     break;
 
-                case AircraftPhase.Taxiing:
-                    (startX, startY, endX, endY) = (300, 380, 400, 480);
-                    State.Heading = 135;
-                    break;
-
+                // ── Departures use the top strip (Y ≈ 460) ───────────────────
                 case AircraftPhase.Parked:
-                    (startX, startY, endX, endY) = (300, 380, 300, 380);
+                    (startX, startY, endX, endY) = (300, 400, 300, 400);
                     State.Heading = 0;
                     break;
 
+                case AircraftPhase.Taxiing:   // departure taxi to holding point
+                    (startX, startY, endX, endY) = (300, 400, 420, 460);
+                    State.Heading = 135;
+                    break;
+
                 case AircraftPhase.Holding:
-                    (startX, startY, endX, endY) = (400, 480, 400, 480);
+                    (startX, startY, endX, endY) = (420, 460, 420, 460);
                     State.Heading = 90;
                     break;
 
                 case AircraftPhase.Takeoff:
-                    (startX, startY, endX, endY) = (400, 480, 1600, 480);
+                    (startX, startY, endX, endY) = (420, 460, 1580, 460);
                     State.Heading = 90;
                     break;
 
                 case AircraftPhase.Climbing:
-                    (startX, startY, endX, endY) = (1600, 480, 2200, 100);
+                    (startX, startY, endX, endY) = (1580, 460, 2200, 80);
                     State.Heading = 45;
                     break;
 
@@ -281,15 +278,14 @@ namespace AirportSim.Server.Simulation
             );
         }
 
-        // NEW: derives altitude and speed from phase + progress
+        // ── Altitude + speed ──────────────────────────────────────────────────
+
         private void UpdateAltitudeAndSpeed()
         {
-            // Altitude: ground = 0 ft, max approach = ~3000 ft
-            double groundY  = 480.0;
+            double groundY  = 520.0;
             double currentY = State.Position.Y;
             State.AltitudeFt = (int)Math.Max(0, (groundY - currentY) * 7.8);
 
-            // Approximate speeds per phase
             State.SpeedKts = State.Phase switch
             {
                 AircraftPhase.Approaching => 180,
@@ -305,7 +301,6 @@ namespace AirportSim.Server.Simulation
                 _                         => 0
             };
 
-            // Scale speed by type
             double factor = State.Type switch
             {
                 AircraftType.Small  => 0.8,

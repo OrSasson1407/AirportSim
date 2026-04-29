@@ -19,23 +19,32 @@ namespace AirportSim.Client.Rendering
         private readonly GroundRenderer   _ground   = new();
         private readonly RunwayRenderer   _runway   = new();
         private readonly AircraftRenderer _aircraft = new();
+        private readonly RadarRenderer    _radar    = new();
 
-        // NEW: emergency flash overlay state
+        // Emergency flash overlay state
         private bool   _emergencyFlash;
         private double _emergencyFlashAccumMs;
         private const double EmergencyFlashIntervalMs = 400;
+
+        // Radar toggle — press R or click the radar button
+        private bool _radarVisible = false;
+
+        public bool RadarVisible
+        {
+            get => _radarVisible;
+            set { _radarVisible = value; InvalidateVisual(); }
+        }
 
         public void Initialize(SimulationViewModel viewModel)
         {
             _viewModel = viewModel;
 
-            // NEW: trigger extra invalidation when alerts/state change
-            _viewModel.StateChanged       += () => Dispatcher.UIThread.Post(InvalidateVisual);
-            _viewModel.EmergencyDetected  += _ => _emergencyFlash = true;
+            _viewModel.StateChanged      += () => Dispatcher.UIThread.Post(InvalidateVisual);
+            _viewModel.EmergencyDetected += _ => _emergencyFlash = true;
 
             _renderTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromMilliseconds(16) // ~60 fps
+                Interval = TimeSpan.FromMilliseconds(16)
             };
             _renderTimer.Tick += delegate { InvalidateVisual(); };
             _renderTimer.Start();
@@ -45,10 +54,9 @@ namespace AirportSim.Client.Rendering
         {
             base.Render(ctx);
 
-            // Track real elapsed time for blink timers
-            DateTime now          = DateTime.UtcNow;
-            double   realDeltaMs  = (now - _lastRenderTime).TotalMilliseconds;
-            _lastRenderTime       = now;
+            DateTime now         = DateTime.UtcNow;
+            double   realDeltaMs = (now - _lastRenderTime).TotalMilliseconds;
+            _lastRenderTime      = now;
 
             // ── No data yet ───────────────────────────────────────────────────
             if (_viewModel?.TargetSnapshot == null)
@@ -58,23 +66,38 @@ namespace AirportSim.Client.Rendering
                 return;
             }
 
-            var snap    = _viewModel.TargetSnapshot;
-            var weather = snap.Weather;
-            double t    = _viewModel.GetInterpolationT();
+            var    snap    = _viewModel.TargetSnapshot;
+            var    weather = snap.Weather;
+            double t       = _viewModel.GetInterpolationT();
 
             double scaleX = Bounds.Width  / 2000.0;
             double scaleY = Bounds.Height / 600.0;
 
+            // ── Main world view ───────────────────────────────────────────────
             using (ctx.PushTransform(Matrix.CreateScale(scaleX, scaleY)))
             {
-                // Draw layers back-to-front
                 _sky.Render(ctx, snap.SimulatedTime, weather);
                 _ground.Render(ctx, snap.SimulatedTime, weather);
                 _runway.Render(ctx, snap.SimulatedTime, weather, realDeltaMs);
                 _aircraft.Render(ctx, _viewModel.PreviousSnapshot, snap, t);
             }
 
-            // ── Emergency flash overlay (drawn in screen space, not world space)
+            // ── Radar overlay (screen-space, top-right corner) ────────────────
+            if (_radarVisible)
+            {
+                double radarSize = Math.Min(Bounds.Width * 0.28, 240);
+                double margin    = 12;
+                double rx        = Bounds.Width  - radarSize - margin;
+                double ry        = margin;
+
+                _radar.Render(ctx,
+                    _viewModel.PreviousSnapshot,
+                    snap,
+                    t,
+                    new Rect(rx, ry, radarSize, radarSize));
+            }
+
+            // ── Emergency flash overlay ───────────────────────────────────────
             if (_viewModel.HasActiveEmergency)
             {
                 _emergencyFlashAccumMs += realDeltaMs;
@@ -89,8 +112,6 @@ namespace AirportSim.Client.Rendering
                     ctx.FillRectangle(
                         new SolidColorBrush(Color.FromArgb(30, 220, 30, 30)),
                         Bounds);
-
-                    // Red border pulse
                     ctx.DrawRectangle(
                         null,
                         new Pen(new SolidColorBrush(Color.FromArgb(160, 220, 40, 40)), 4),

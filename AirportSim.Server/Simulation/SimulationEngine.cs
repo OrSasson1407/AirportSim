@@ -14,18 +14,19 @@ namespace AirportSim.Server.Simulation
     {
         private readonly IHubContext<SimulationHub, ISimulationClient> _hubContext;
 
-        // NEW: public so SimulationHub can read/write them directly
-        public  SimClock          Clock     { get; }
-        private FlightScheduler   _scheduler;
-        private RunwayController  _runway;
-        private List<Aircraft>    _activeAircraft;
+        public  SimClock           Clock      { get; }
+        private FlightScheduler    _scheduler;
+        private RunwayController   _runway;
+        private GateManager        _gates;
+        private ConflictDetector   _conflicts;
+        private List<Aircraft>     _activeAircraft;
 
-        // NEW: weather state + rolling alert log
+        private readonly Queue<Aircraft> _gateQueue = new();
+
         private WeatherCondition  _weather = WeatherCondition.Clear;
         private readonly List<string> _alertLog = new();
         private const int AlertLogMax = 20;
 
-        // NEW: daily counters
         private int _arrivalsToday;
         private int _departuresToday;
         private int _goAroundsToday;
@@ -33,20 +34,21 @@ namespace AirportSim.Server.Simulation
         private const int TickIntervalMs      = 100;
         private const int BroadcastIntervalMs = 200;
 
-        // NEW: weather cycles every ~5 real minutes automatically
         private DateTime _lastWeatherChange = DateTime.UtcNow;
         private const int WeatherChangeSec  = 300;
 
         public SimulationEngine(IHubContext<SimulationHub, ISimulationClient> hubContext)
         {
             _hubContext     = hubContext;
-            Clock           = new SimClock(DateTime.Today.AddHours(5)); // start at 05:00 dawn
+            Clock           = new SimClock(DateTime.Today.AddHours(5));
             _scheduler      = new FlightScheduler();
             _runway         = new RunwayController();
+            _gates          = new GateManager();
+            _conflicts      = new ConflictDetector();
             _activeAircraft = new List<Aircraft>();
         }
 
-        // ── Public API called by SimulationHub ────────────────────────────────
+        // ── Public API ────────────────────────────────────────────────────────
 
         public void InjectEmergency()
         {
@@ -89,7 +91,6 @@ namespace AirportSim.Server.Simulation
                     lastBroadcast = now;
                 }
 
-                // Auto-cycle weather every WeatherChangeSec real seconds
                 if ((now - _lastWeatherChange).TotalSeconds >= WeatherChangeSec)
                 {
                     CycleWeather();
@@ -107,65 +108,139 @@ namespace AirportSim.Server.Simulation
             Clock.Tick(realElapsedMs);
             _scheduler.Update(Clock.SimulatedNow);
 
-            // Spawn flights whose scheduled time has arrived
+            double simDeltaMs = realElapsedMs * Clock.TimeScale;
+            double simNowMs   = Clock.SimulatedNow
+                                     .Subtract(DateTime.Today).TotalMilliseconds;
+
+            // ── Spawn new flights ─────────────────────────────────────────────
             var next = _scheduler.PeekNextFlight();
             if (next != null && Clock.SimulatedNow >= next.ScheduledTime)
             {
-                var aircraft = new Aircraft(_scheduler.DequeueNextFlight());
+                var flightEvent = _scheduler.DequeueNextFlight();
+                var aircraft    = new Aircraft(flightEvent);
 
-                // NEW: mark emergency aircraft and apply weather-driven go-around chance
                 if (aircraft.State.FlightId.StartsWith("MAYDAY"))
                 {
                     aircraft.DeclareEmergency();
                     PushAlert($"🚨 {aircraft.State.FlightId} on emergency approach");
+                    AssignGate(aircraft, flightEvent.Gate);
+                    _activeAircraft.Add(aircraft);
                 }
                 else
                 {
                     aircraft.GoAroundChance = WeatherGoAroundChance(_weather);
-                }
 
-                _activeAircraft.Add(aircraft);
+                    if (aircraft.State.FlightType == FlightType.Departure)
+                    {
+                        if (!AssignGate(aircraft, flightEvent.Gate))
+                        {
+                            _gateQueue.Enqueue(aircraft);
+                            PushAlert($"⏳ {aircraft.State.FlightId} queued — apron full");
+                        }
+                        else
+                        {
+                            _activeAircraft.Add(aircraft);
+                        }
+                    }
+                    else
+                    {
+                        _activeAircraft.Add(aircraft);
+                    }
+                }
             }
 
-            // Tick the runway safety timer
-            double simDeltaMs = realElapsedMs * Clock.TimeScale;
-            _runway.Tick(simDeltaMs);
+            // ── Drain gate queue ──────────────────────────────────────────────
+            while (_gateQueue.Count > 0 && _gates.HasFreeGate())
+            {
+                var queued = _gateQueue.Dequeue();
+                AssignGate(queued, queued.State.AssignedGate);
+                _activeAircraft.Add(queued);
+                PushAlert($"🅿 {queued.State.FlightId} gate assigned → {queued.State.AssignedGate}");
+            }
 
-            // Drain runway alerts
+            // ── Tick runway safety timer ──────────────────────────────────────
+            _runway.Tick(simDeltaMs);
             foreach (var alert in _runway.PendingAlerts) PushAlert(alert);
             _runway.PendingAlerts.Clear();
 
-            // Tick all aircraft
+            // ── Tick all active aircraft ──────────────────────────────────────
             foreach (var ac in _activeAircraft.ToList())
             {
                 var phaseBefore = ac.State.Phase;
                 ac.Tick(simDeltaMs, _runway);
 
-                // Detect go-arounds
-                if (phaseBefore == AircraftPhase.OnFinal && ac.State.Phase == AircraftPhase.GoAround)
+                // Arrival just reached Parked — assign a gate
+                if (phaseBefore == AircraftPhase.Taxiing &&
+                    ac.State.Phase == AircraftPhase.Parked &&
+                    ac.State.FlightType == FlightType.Arrival)
+                {
+                    if (!AssignGate(ac, ac.State.AssignedGate))
+                        PushAlert($"⚠ {ac.State.FlightId} parked but no gate free");
+                    else
+                        PushAlert($"🅿 {ac.State.FlightId} parked at gate {ac.State.AssignedGate}");
+                }
+
+                // Departure left the gate — free it
+                if (phaseBefore == AircraftPhase.Parked &&
+                    ac.State.Phase == AircraftPhase.Taxiing &&
+                    ac.State.FlightType == FlightType.Departure)
+                {
+                    _gates.Release(ac.State.FlightId);
+                    PushAlert($"🚪 {ac.State.FlightId} pushed back from {ac.State.AssignedGate}");
+                }
+
+                // Go-around detected
+                if (phaseBefore == AircraftPhase.OnFinal &&
+                    ac.State.Phase == AircraftPhase.GoAround)
                 {
                     _goAroundsToday++;
-                    PushAlert($"↩ {ac.State.FlightId} executing go-around (attempt {ac.State.GoAroundCount})");
+                    _conflicts.RecordGoAround(simNowMs);
+                    PushAlert($"↩ {ac.State.FlightId} executing go-around " +
+                              $"(attempt {ac.State.GoAroundCount})");
                 }
 
-                // Detect landings completed
-                if (phaseBefore == AircraftPhase.Rollout && ac.State.Phase == AircraftPhase.Taxiing)
+                // Landing completed
+                if (phaseBefore == AircraftPhase.Rollout &&
+                    ac.State.Phase == AircraftPhase.Taxiing)
                 {
                     _arrivalsToday++;
-                    PushAlert($"✅ {ac.State.FlightId} landed and vacated runway");
+                    PushAlert($"✅ {ac.State.FlightId} landed and vacated 28L");
                 }
 
-                // Detect departures
-                if (phaseBefore == AircraftPhase.Climbing && ac.State.Phase == AircraftPhase.Departed)
+                // Departure completed
+                if (phaseBefore == AircraftPhase.Climbing &&
+                    ac.State.Phase == AircraftPhase.Departed)
                 {
                     _departuresToday++;
-                    PushAlert($"✈ {ac.State.FlightId} departed");
+                    _gates.Release(ac.State.FlightId);
+                    PushAlert($"✈ {ac.State.FlightId} departed via 28R");
                 }
 
-                // Remove finished aircraft
                 if (ac.IsFinished)
+                {
+                    _gates.Release(ac.State.FlightId);
                     _activeAircraft.Remove(ac);
+                }
             }
+
+            // ── Run conflict detection ────────────────────────────────────────
+            var states = _activeAircraft.Select(a => a.State).ToList();
+            _conflicts.Check(states, simNowMs, simDeltaMs);
+            foreach (var alert in _conflicts.PendingAlerts)
+                PushAlert(alert);
+        }
+
+        // ── Gate assignment ───────────────────────────────────────────────────
+
+        private bool AssignGate(Aircraft aircraft, string preferred)
+        {
+            var result = _gates.Assign(aircraft.State.FlightId, preferred);
+            if (result == null) return false;
+
+            aircraft.State.AssignedGate = result.Value.gateName;
+            aircraft.State.GateX        = result.Value.gateX;
+            aircraft.State.GateY        = result.Value.gateY;
+            return true;
         }
 
         // ── Broadcast ─────────────────────────────────────────────────────────
@@ -174,14 +249,14 @@ namespace AirportSim.Server.Simulation
         {
             var snapshot = new SimSnapshot
             {
-                SimulatedTime      = Clock.SimulatedNow,
-                TimeScale          = Clock.TimeScale,
-                IsPaused           = Clock.IsPaused,
-                RunwayStatus       = _runway.Status,
-                ActiveAircraft     = _activeAircraft.Select(a => a.State).ToList(),
-                QueuedFlights      = _scheduler.GetQueuePreview(5),
-                Weather            = _weather,
-                RecentAlerts       = _alertLog.TakeLast(5).Reverse().ToList(),
+                SimulatedTime       = Clock.SimulatedNow,
+                TimeScale           = Clock.TimeScale,
+                IsPaused            = Clock.IsPaused,
+                Runways             = _runway.GetSnapshots(),
+                ActiveAircraft      = _activeAircraft.Select(a => a.State).ToList(),
+                QueuedFlights       = _scheduler.GetQueuePreview(5),
+                Weather             = _weather,
+                RecentAlerts        = _alertLog.TakeLast(5).Reverse().ToList(),
                 TotalArrivalsToday  = _arrivalsToday,
                 TotalDeparturesToay = _departuresToday,
                 GoAroundsToday      = _goAroundsToday

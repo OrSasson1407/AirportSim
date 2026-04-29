@@ -22,7 +22,7 @@ namespace AirportSim.Shared.Models
         // Arrival phases
         Approaching,
         OnFinal,
-        GoAround,       // NEW: aborted landing, climbing back out
+        GoAround,
         Landing,
         Rollout,
 
@@ -39,21 +39,26 @@ namespace AirportSim.Shared.Models
         Occupied
     }
 
-    // NEW: current weather conditions at the airport
+    // Which physical runway an aircraft is assigned to
+    public enum RunwayId
+    {
+        Runway28L,   // arrivals runway  (left  / bottom strip)
+        Runway28R    // departures runway (right / top strip)
+    }
+
     public enum WeatherCondition
     {
         Clear,
         Cloudy,
         Rain,
-        Fog,            // reduces visibility, forces go-arounds more often
-        Storm           // grounds departures, increases go-around chance
+        Fog,
+        Storm
     }
 
-    // NEW: special status flags for an aircraft
     public enum AircraftStatus
     {
         Normal,
-        Emergency,      // squawking 7700 — flashes red on client
-        GoAround        // actively climbing away from a missed approach
+        Emergency,
+        GoAround
     }
 }

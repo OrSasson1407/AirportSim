@@ -141,7 +141,7 @@
 
             <Grid ColumnDefinitions="Auto, *, Auto">
 
-                <!-- LEFT: playback + speed controls -->
+                <!-- LEFT: playback + speed + panel toggles + tools -->
                 <StackPanel Grid.Column="0"
                             Orientation="Horizontal"
                             Spacing="6">
@@ -219,6 +219,17 @@
                             Click="Weather_Click"
                             Background="#1A2030"
                             Foreground="#AACCFF"
+                            CornerRadius="4"
+                            Padding="8,5"/>
+
+                    <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
+
+                    <!-- Radar toggle -->
+                    <Button x:Name="ToggleRadarButton"
+                            Content="📡 Radar"
+                            Click="ToggleRadar_Click"
+                            Background="#0A1A2A"
+                            Foreground="#88AAFFCC"
                             CornerRadius="4"
                             Padding="8,5"/>
 

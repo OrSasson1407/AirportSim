@@ -16,6 +16,7 @@ namespace AirportSim.Client.Views
         private bool                 _isPaused;
         private bool                 _queueVisible;
         private bool                 _alertsVisible;
+        private bool                 _radarVisible;
 
         public SimulationView()
         {
@@ -30,7 +31,7 @@ namespace AirportSim.Client.Views
             var canvas = this.FindControl<AirportSim.Client.Rendering.AirportCanvas>("SimCanvas");
             canvas?.Initialize(vm);
 
-            // Subscribe to state changes (alerts, connection)
+            // Subscribe to state changes
             vm.StateChanged      += RefreshAlertList;
             vm.EmergencyDetected += OnEmergencyDetected;
 
@@ -66,15 +67,37 @@ namespace AirportSim.Client.Views
                 timeText.Text = $"{snap.SimulatedTime:HH:mm}  {snap.TimeScale}×{pause}";
             }
 
-            // Runway status
+            // Runway status — now shows both runways
             var runwayText = this.FindControl<TextBlock>("RunwayText");
             if (runwayText != null)
             {
-                bool occupied = snap.RunwayStatus == RunwayStatus.Occupied;
-                runwayText.Text       = occupied ? "RWY ▐" : "RWY ○";
-                runwayText.Foreground = occupied
-                    ? new SolidColorBrush(Color.FromRgb(220, 80,  60))
-                    : new SolidColorBrush(Color.FromRgb(80,  200, 100));
+                if (snap.Runways.Count >= 2)
+                {
+                    var arr = snap.Runways[0];
+                    var dep = snap.Runways[1];
+
+                    bool arrOcc = arr.Status == RunwayStatus.Occupied;
+                    bool depOcc = dep.Status == RunwayStatus.Occupied;
+
+                    string arrStr = arrOcc ? "28L ▐" : "28L ○";
+                    string depStr = depOcc ? "28R ▐" : "28R ○";
+
+                    runwayText.Text = $"{arrStr}  {depStr}";
+
+                    // Colour red if either occupied, green if both free
+                    runwayText.Foreground = (arrOcc || depOcc)
+                        ? new SolidColorBrush(Color.FromRgb(220, 80, 60))
+                        : new SolidColorBrush(Color.FromRgb(80, 200, 100));
+                }
+                else
+                {
+                    // Legacy fallback
+                    bool occupied = snap.RunwayStatus == RunwayStatus.Occupied;
+                    runwayText.Text       = occupied ? "RWY ▐" : "RWY ○";
+                    runwayText.Foreground = occupied
+                        ? new SolidColorBrush(Color.FromRgb(220, 80, 60))
+                        : new SolidColorBrush(Color.FromRgb(80, 200, 100));
+                }
             }
 
             // Weather
@@ -107,10 +130,10 @@ namespace AirportSim.Client.Views
 
             var lines = snap.QueuedFlights.Select(f =>
             {
-                string arrow  = f.FlightType == FlightType.Arrival ? "↓" : "↑";
-                string type   = f.Type.ToString()[0].ToString();     // S / M / L
-                string delay  = f.DelayMinutes > 0 ? $" +{f.DelayMinutes}m" : "";
-                string route  = f.FlightType == FlightType.Arrival
+                string arrow = f.FlightType == FlightType.Arrival ? "↓" : "↑";
+                string type  = f.Type.ToString()[0].ToString();
+                string delay = f.DelayMinutes > 0 ? $" +{f.DelayMinutes}m" : "";
+                string route = f.FlightType == FlightType.Arrival
                     ? $"{f.Origin}→TLV"
                     : $"TLV→{f.Destination}";
                 return $"{arrow}{type}  {f.FlightId,-12} {route}{delay}";
@@ -129,11 +152,9 @@ namespace AirportSim.Client.Views
             if (list != null)
                 list.ItemsSource = _vm.AlertQueue.ToList();
 
-            // Auto-scroll to top (newest)
             var scroller = this.FindControl<ScrollViewer>("AlertScroller");
             scroller?.ScrollToHome();
 
-            // Show alert panel badge if there are alerts and it's hidden
             var btn = this.FindControl<Button>("ToggleAlertsButton");
             if (btn != null && _vm.AlertQueue.Count > 0 && !_alertsVisible)
                 btn.Content = $"🔔 Alerts ({_vm.AlertQueue.Count})";
@@ -148,15 +169,13 @@ namespace AirportSim.Client.Views
 
             if (banner == null || text == null) return;
 
-            text.Text       = $"🚨 EMERGENCY  {flightId}  —  MAYDAY";
+            text.Text        = $"🚨 EMERGENCY  {flightId}  —  MAYDAY";
             banner.IsVisible = true;
 
-            // Auto-hide after 8 seconds
             var hideTimer = new DispatcherTimer
                 { Interval = TimeSpan.FromSeconds(8) };
             hideTimer.Tick += (_, _) =>
             {
-                // Only hide if no more emergencies active
                 if (_vm?.HasActiveEmergency != true)
                     banner.IsVisible = false;
                 hideTimer.Stop();
@@ -220,6 +239,20 @@ namespace AirportSim.Client.Views
         {
             var list = this.FindControl<ItemsControl>("AlertList");
             if (list != null) list.ItemsSource = new List<string>();
+        }
+
+        private void ToggleRadar_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            _radarVisible = !_radarVisible;
+
+            var canvas = this.FindControl<AirportSim.Client.Rendering.AirportCanvas>("SimCanvas");
+            if (canvas != null) canvas.RadarVisible = _radarVisible;
+
+            var btn = this.FindControl<Button>("ToggleRadarButton");
+            if (btn != null)
+                btn.Foreground = _radarVisible
+                    ? new SolidColorBrush(Color.FromRgb(0, 220, 120))
+                    : new SolidColorBrush(Color.FromArgb(136, 170, 255, 204));
         }
     }
 }
