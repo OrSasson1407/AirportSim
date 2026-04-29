@@ -2,24 +2,268 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:rendering="clr-namespace:AirportSim.Client.Rendering"
              x:Class="AirportSim.Client.Views.SimulationView">
-    
+
     <Grid RowDefinitions="*, Auto">
-        <rendering:AirportCanvas x:Name="SimCanvas" Grid.Row="0" />
-        
-        <Border Grid.Row="1" Background="#222" Padding="10">
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 0 — Main canvas + overlays                                  -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Grid Grid.Row="0">
+
+            <!-- Simulation canvas (bottom layer) -->
+            <rendering:AirportCanvas x:Name="SimCanvas" />
+
+            <!-- ── Alert panel (top-right overlay) ── -->
+            <Border x:Name="AlertPanel"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    Margin="0,8,8,0"
+                    Width="290"
+                    MaxHeight="220"
+                    Background="#CC0A0C14"
+                    CornerRadius="6"
+                    IsVisible="False">
+                <Grid RowDefinitions="Auto, *">
+
+                    <!-- Header -->
+                    <Border Grid.Row="0"
+                            Background="#331A1C28"
+                            CornerRadius="6,6,0,0"
+                            Padding="10,5">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Grid.Column="0"
+                                       Text="ALERTS"
+                                       FontSize="10"
+                                       FontWeight="Bold"
+                                       Foreground="#88AABBCC"
+                                       LetterSpacing="2"/>
+                            <Button Grid.Column="1"
+                                    x:Name="ClearAlertsButton"
+                                    Content="✕"
+                                    FontSize="10"
+                                    Foreground="#88AABBCC"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Padding="4,0"
+                                    Click="ClearAlerts_Click"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Scrollable alert list -->
+                    <ScrollViewer Grid.Row="1"
+                                  x:Name="AlertScroller"
+                                  VerticalScrollBarVisibility="Auto">
+                        <ItemsControl x:Name="AlertList" Margin="0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="10,4"
+                                            BorderThickness="0,0,0,1"
+                                            BorderBrush="#22FFFFFF">
+                                        <TextBlock Text="{Binding}"
+                                                   FontSize="11"
+                                                   Foreground="#CCFFFFFF"
+                                                   TextWrapping="Wrap"/>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                </Grid>
+            </Border>
+
+            <!-- ── Queue panel (top-left overlay) ── -->
+            <Border x:Name="QueuePanel"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Margin="8,8,0,0"
+                    Width="230"
+                    Background="#CC0A0C14"
+                    CornerRadius="6"
+                    IsVisible="False">
+                <Grid RowDefinitions="Auto, *">
+
+                    <Border Grid.Row="0"
+                            Background="#331A1C28"
+                            CornerRadius="6,6,0,0"
+                            Padding="10,5">
+                        <TextBlock Text="NEXT FLIGHTS"
+                                   FontSize="10"
+                                   FontWeight="Bold"
+                                   Foreground="#88AABBCC"
+                                   LetterSpacing="2"/>
+                    </Border>
+
+                    <ItemsControl Grid.Row="1"
+                                  x:Name="QueueList">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="10,5"
+                                        BorderThickness="0,0,0,1"
+                                        BorderBrush="#22FFFFFF">
+                                    <TextBlock Text="{Binding}"
+                                               FontSize="11"
+                                               Foreground="#CCFFFFFF"
+                                               FontFamily="Courier New"/>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                </Grid>
+            </Border>
+
+            <!-- ── Emergency banner (centre top, hidden until needed) ── -->
+            <Border x:Name="EmergencyBanner"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Margin="0,8,0,0"
+                    Padding="18,7"
+                    Background="#EE8B0000"
+                    CornerRadius="5"
+                    IsVisible="False">
+                <TextBlock x:Name="EmergencyText"
+                           FontSize="13"
+                           FontWeight="Bold"
+                           Foreground="White"
+                           Text="🚨 EMERGENCY"
+                           HorizontalAlignment="Center"/>
+            </Border>
+
+        </Grid>
+
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <!-- ROW 1 — Control bar                                             -->
+        <!-- ═══════════════════════════════════════════════════════════════ -->
+        <Border Grid.Row="1"
+                Background="#EE141820"
+                Padding="10,7">
+
             <Grid ColumnDefinitions="Auto, *, Auto">
-                
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
-                    <Button Content="1x Speed" Click="Speed1x_Click" Background="#444" Foreground="White"/>
-                    <Button Content="60x Speed" Click="Speed60x_Click" Background="#444" Foreground="White"/>
-                    <Button Content="Pause/Resume" Click="Pause_Click" Background="#444" Foreground="White"/>
+
+                <!-- LEFT: playback + speed controls -->
+                <StackPanel Grid.Column="0"
+                            Orientation="Horizontal"
+                            Spacing="6">
+
+                    <Button x:Name="PauseButton"
+                            Content="⏸ Pause"
+                            Click="Pause_Click"
+                            Background="#2A3A4A"
+                            Foreground="White"
+                            CornerRadius="4"
+                            Padding="10,5"/>
+
+                    <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
+
+                    <Button Content="«"
+                            ToolTip.Tip="Speed down"
+                            Click="SpeedDown_Click"
+                            Background="#1E2A38"
+                            Foreground="White"
+                            CornerRadius="4"
+                            Padding="8,5"/>
+
+                    <Button Content="1×"
+                            Click="Speed1x_Click"
+                            Background="#1E2A38"
+                            Foreground="#88AABBCC"
+                            CornerRadius="4"
+                            Padding="8,5"/>
+
+                    <Button Content="60×"
+                            Click="Speed60x_Click"
+                            Background="#1E2A38"
+                            Foreground="#88AABBCC"
+                            CornerRadius="4"
+                            Padding="8,5"/>
+
+                    <Button Content="»"
+                            ToolTip.Tip="Speed up"
+                            Click="SpeedUp_Click"
+                            Background="#1E2A38"
+                            Foreground="White"
+                            CornerRadius="4"
+                            Padding="8,5"/>
+
+                    <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
+
+                    <!-- Toggleable panels -->
+                    <Button x:Name="ToggleQueueButton"
+                            Content="☰ Queue"
+                            Click="ToggleQueue_Click"
+                            Background="#1A2D1A"
+                            Foreground="#88CCFFAA"
+                            CornerRadius="4"
+                            Padding="8,5"/>
+
+                    <Button x:Name="ToggleAlertsButton"
+                            Content="🔔 Alerts"
+                            Click="ToggleAlerts_Click"
+                            Background="#1A1A2D"
+                            Foreground="#88AABBFF"
+                            CornerRadius="4"
+                            Padding="8,5"/>
+
+                    <Border Width="1" Background="#33FFFFFF" Margin="2,0"/>
+
+                    <!-- Emergency + Weather -->
+                    <Button Content="🚨 Emergency"
+                            Click="Emergency_Click"
+                            Background="#3A0A0A"
+                            Foreground="#FFAAAA"
+                            CornerRadius="4"
+                            Padding="8,5"/>
+
+                    <Button Content="🌤 Weather"
+                            Click="Weather_Click"
+                            Background="#1A2030"
+                            Foreground="#AACCFF"
+                            CornerRadius="4"
+                            Padding="8,5"/>
+
                 </StackPanel>
 
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="20">
-                    <TextBlock x:Name="StatusText" Foreground="White" VerticalAlignment="Center" Text="Connecting to Server..." />
-                    <TextBlock x:Name="TimeText" Foreground="Cyan" VerticalAlignment="Center" />
+                <!-- CENTRE: empty spacer -->
+                <Border Grid.Column="1"/>
+
+                <!-- RIGHT: status readouts -->
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            Spacing="16"
+                            VerticalAlignment="Center">
+
+                    <TextBlock x:Name="WeatherText"
+                               Foreground="#88AABBCC"
+                               FontSize="12"
+                               VerticalAlignment="Center"/>
+
+                    <TextBlock x:Name="StatsText"
+                               Foreground="#88AABBCC"
+                               FontSize="12"
+                               VerticalAlignment="Center"/>
+
+                    <TextBlock x:Name="RunwayText"
+                               FontSize="12"
+                               VerticalAlignment="Center"/>
+
+                    <TextBlock x:Name="TimeText"
+                               Foreground="Cyan"
+                               FontSize="13"
+                               FontWeight="Bold"
+                               VerticalAlignment="Center"/>
+
+                    <Border x:Name="ConnectionIndicator"
+                            Width="10" Height="10"
+                            CornerRadius="5"
+                            Background="Gray"
+                            VerticalAlignment="Center"
+                            ToolTip.Tip="Server connection"/>
+
                 </StackPanel>
+
             </Grid>
         </Border>
+
     </Grid>
 </UserControl>

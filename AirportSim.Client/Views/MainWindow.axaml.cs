@@ -1,22 +1,21 @@
 using Avalonia.Controls;
-using AirportSim.Client.ViewModels; // <-- This is the line that fixes the error!
+using AirportSim.Client.ViewModels;
 
 namespace AirportSim.Client.Views
 {
     public partial class MainWindow : Window
     {
-        private MainViewModel? _viewModel;
+        // NEW: public so App.axaml.cs can access it for graceful shutdown
+        public MainViewModel? ViewModel { get; private set; }
 
         public MainWindow()
         {
             InitializeComponent();
-            
-            // Initialize the top-level state
-            _viewModel = new MainViewModel();
-            
-            // Find the SimulationView in the UI and boot it up
+
+            ViewModel = new MainViewModel();
+
             var simView = this.FindControl<SimulationView>("MainSimView");
-            simView?.Initialize(_viewModel.Simulation);
+            simView?.Initialize(ViewModel.Simulation);
         }
     }
 }

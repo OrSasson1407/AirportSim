@@ -1,65 +1,225 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Threading;
 using AirportSim.Client.ViewModels;
-using System;
+using AirportSim.Shared.Models;
 
 namespace AirportSim.Client.Views
 {
     public partial class SimulationView : UserControl
     {
-        private SimulationViewModel? _viewModel;
-        private DispatcherTimer? _uiTimer;
-        private bool _isPaused = false;
+        private SimulationViewModel? _vm;
+        private DispatcherTimer?     _uiTimer;
+        private bool                 _isPaused;
+        private bool                 _queueVisible;
+        private bool                 _alertsVisible;
 
         public SimulationView()
         {
             InitializeComponent();
         }
 
-        public void Initialize(SimulationViewModel viewModel)
+        public void Initialize(SimulationViewModel vm)
         {
-            _viewModel = viewModel;
-            
-            // Start the SignalR connection
-            _viewModel.Start();
+            _vm = vm;
 
-            // Link the canvas to the ViewModel
+            // Wire canvas
             var canvas = this.FindControl<AirportSim.Client.Rendering.AirportCanvas>("SimCanvas");
-            canvas?.Initialize(viewModel);
+            canvas?.Initialize(vm);
 
-            // Simple UI updater for the bottom bar (updates twice a second)
+            // Subscribe to state changes (alerts, connection)
+            vm.StateChanged      += RefreshAlertList;
+            vm.EmergencyDetected += OnEmergencyDetected;
+
+            // Lightweight UI refresh at 2 Hz for the status bar
             _uiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            _uiTimer.Tick += delegate { UpdateUI(); };
+            _uiTimer.Tick += delegate { UpdateStatusBar(); };
             _uiTimer.Start();
+
+            vm.Start();
         }
 
-        private void UpdateUI()
+        // ── Status bar ────────────────────────────────────────────────────────
+
+        private void UpdateStatusBar()
         {
-            var statusText = this.FindControl<TextBlock>("StatusText");
+            if (_vm == null) return;
+            var snap = _vm.TargetSnapshot;
+
+            // Connection indicator dot
+            var dot = this.FindControl<Border>("ConnectionIndicator");
+            if (dot != null)
+                dot.Background = _vm.IsConnected
+                    ? new SolidColorBrush(Color.FromRgb(60, 200, 80))
+                    : new SolidColorBrush(Color.FromRgb(200, 60, 60));
+
+            if (snap == null) return;
+
+            // Sim time + speed
             var timeText = this.FindControl<TextBlock>("TimeText");
-
-            if (_viewModel?.TargetSnapshot != null && statusText != null && timeText != null)
+            if (timeText != null)
             {
-                var snap = _viewModel.TargetSnapshot;
-                statusText.Text = $"Connected | Runway: {snap.RunwayStatus} | Planes: {snap.ActiveAircraft.Count} | Queue: {snap.QueuedFlights.Count}";
-                timeText.Text = $"Sim Time: {snap.SimulatedTime:HH:mm:ss} ({snap.TimeScale}x)";
+                string pause = snap.IsPaused ? " ⏸" : "";
+                timeText.Text = $"{snap.SimulatedTime:HH:mm}  {snap.TimeScale}×{pause}";
             }
+
+            // Runway status
+            var runwayText = this.FindControl<TextBlock>("RunwayText");
+            if (runwayText != null)
+            {
+                bool occupied = snap.RunwayStatus == RunwayStatus.Occupied;
+                runwayText.Text       = occupied ? "RWY ▐" : "RWY ○";
+                runwayText.Foreground = occupied
+                    ? new SolidColorBrush(Color.FromRgb(220, 80,  60))
+                    : new SolidColorBrush(Color.FromRgb(80,  200, 100));
+            }
+
+            // Weather
+            var weatherText = this.FindControl<TextBlock>("WeatherText");
+            if (weatherText != null)
+                weatherText.Text = _vm.WeatherText;
+
+            // Stats — planes / arrivals / go-arounds
+            var statsText = this.FindControl<TextBlock>("StatsText");
+            if (statsText != null)
+                statsText.Text =
+                    $"✈ {snap.ActiveAircraft.Count}  " +
+                    $"↓{snap.TotalArrivalsToday}  " +
+                    $"↑{snap.TotalDeparturesToay}  " +
+                    $"↩{snap.GoAroundsToday}";
+
+            // Pause button label
+            var pauseBtn = this.FindControl<Button>("PauseButton");
+            if (pauseBtn != null)
+                pauseBtn.Content = snap.IsPaused ? "▶ Resume" : "⏸ Pause";
+
+            // Queue panel
+            UpdateQueuePanel(snap);
         }
 
-        private void Speed1x_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        private void UpdateQueuePanel(SimSnapshot snap)
         {
-            _viewModel?.Connection.SetTimeScaleAsync(1.0);
+            var list = this.FindControl<ItemsControl>("QueueList");
+            if (list == null) return;
+
+            var lines = snap.QueuedFlights.Select(f =>
+            {
+                string arrow  = f.FlightType == FlightType.Arrival ? "↓" : "↑";
+                string type   = f.Type.ToString()[0].ToString();     // S / M / L
+                string delay  = f.DelayMinutes > 0 ? $" +{f.DelayMinutes}m" : "";
+                string route  = f.FlightType == FlightType.Arrival
+                    ? $"{f.Origin}→TLV"
+                    : $"TLV→{f.Destination}";
+                return $"{arrow}{type}  {f.FlightId,-12} {route}{delay}";
+            }).ToList();
+
+            list.ItemsSource = lines;
         }
 
-        private void Speed60x_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        // ── Alert panel ───────────────────────────────────────────────────────
+
+        private void RefreshAlertList()
         {
-            _viewModel?.Connection.SetTimeScaleAsync(60.0);
+            if (_vm == null) return;
+
+            var list = this.FindControl<ItemsControl>("AlertList");
+            if (list != null)
+                list.ItemsSource = _vm.AlertQueue.ToList();
+
+            // Auto-scroll to top (newest)
+            var scroller = this.FindControl<ScrollViewer>("AlertScroller");
+            scroller?.ScrollToHome();
+
+            // Show alert panel badge if there are alerts and it's hidden
+            var btn = this.FindControl<Button>("ToggleAlertsButton");
+            if (btn != null && _vm.AlertQueue.Count > 0 && !_alertsVisible)
+                btn.Content = $"🔔 Alerts ({_vm.AlertQueue.Count})";
         }
+
+        // ── Emergency banner ──────────────────────────────────────────────────
+
+        private void OnEmergencyDetected(string flightId)
+        {
+            var banner = this.FindControl<Border>("EmergencyBanner");
+            var text   = this.FindControl<TextBlock>("EmergencyText");
+
+            if (banner == null || text == null) return;
+
+            text.Text       = $"🚨 EMERGENCY  {flightId}  —  MAYDAY";
+            banner.IsVisible = true;
+
+            // Auto-hide after 8 seconds
+            var hideTimer = new DispatcherTimer
+                { Interval = TimeSpan.FromSeconds(8) };
+            hideTimer.Tick += (_, _) =>
+            {
+                // Only hide if no more emergencies active
+                if (_vm?.HasActiveEmergency != true)
+                    banner.IsVisible = false;
+                hideTimer.Stop();
+            };
+            hideTimer.Start();
+        }
+
+        // ── Button handlers ───────────────────────────────────────────────────
 
         private void Pause_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
         {
             _isPaused = !_isPaused;
-            _viewModel?.Connection.SetPausedAsync(_isPaused);
+            _vm?.Connection.SetPausedAsync(_isPaused);
+        }
+
+        private void Speed1x_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+            _vm?.Connection.SetTimeScaleAsync(1.0);
+
+        private void Speed60x_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+            _vm?.Connection.SetTimeScaleAsync(60.0);
+
+        private void SpeedUp_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+            _vm?.Connection.StepSpeedUpAsync();
+
+        private void SpeedDown_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+            _vm?.Connection.StepSpeedDownAsync();
+
+        private void Emergency_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+            _vm?.Connection.DeclareEmergencyAsync();
+
+        private void Weather_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+            _vm?.Connection.CycleWeatherAsync();
+
+        private void ToggleQueue_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            _queueVisible = !_queueVisible;
+            var panel = this.FindControl<Border>("QueuePanel");
+            var btn   = this.FindControl<Button>("ToggleQueueButton");
+            if (panel != null) panel.IsVisible = _queueVisible;
+            if (btn   != null) btn.Foreground  = _queueVisible
+                ? new SolidColorBrush(Color.FromRgb(100, 220, 120))
+                : new SolidColorBrush(Color.FromArgb(136, 204, 255, 170));
+        }
+
+        private void ToggleAlerts_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            _alertsVisible = !_alertsVisible;
+            var panel = this.FindControl<Border>("AlertPanel");
+            var btn   = this.FindControl<Button>("ToggleAlertsButton");
+            if (panel != null) panel.IsVisible = _alertsVisible;
+            if (btn   != null)
+            {
+                btn.Content    = _alertsVisible ? "🔔 Alerts" : $"🔔 Alerts ({_vm?.AlertQueue.Count ?? 0})";
+                btn.Foreground = _alertsVisible
+                    ? new SolidColorBrush(Color.FromRgb(120, 140, 255))
+                    : new SolidColorBrush(Color.FromArgb(136, 170, 187, 255));
+            }
+        }
+
+        private void ClearAlerts_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+        {
+            var list = this.FindControl<ItemsControl>("AlertList");
+            if (list != null) list.ItemsSource = new List<string>();
         }
     }
 }

@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using AirportSim.Client.Views;
+using System;
 
 namespace AirportSim.Client
 {
@@ -16,9 +17,15 @@ namespace AirportSim.Client
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // We removed the default DataContext injection here
-                // so your custom MainWindow.axaml.cs can handle it!
-                desktop.MainWindow = new MainWindow();
+                var mainWindow = new MainWindow();
+                desktop.MainWindow = mainWindow;
+
+                // Graceful shutdown — ViewModel property added in Step 7
+                // so the full shutdown hook is wired there instead
+                desktop.ShutdownRequested += (_, _) =>
+                {
+                    // placeholder — extended in Step 7
+                };
             }
 
             base.OnFrameworkInitializationCompleted();

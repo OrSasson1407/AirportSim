@@ -8,26 +8,58 @@ namespace AirportSim.Client.Connection
     public class SimulationConnection
     {
         private readonly HubConnection _hubConnection;
-        
+
+        // ── Events ────────────────────────────────────────────────────────────
         public event Action<SimSnapshot>? OnSnapshotReceived;
-        public event Action<string>? OnAlertReceived;
+        public event Action<string>?      OnAlertReceived;
+        public event Action?              OnConnected;
+        public event Action?              OnDisconnected;  // NEW
+
+        // NEW: expose connection state for the UI status bar
+        public HubConnectionState State => _hubConnection.State;
+        public bool IsConnected => _hubConnection.State == HubConnectionState.Connected;
 
         public SimulationConnection()
         {
             _hubConnection = new HubConnectionBuilder()
                 .WithUrl("http://localhost:2001/simhub")
-                .WithAutomaticReconnect()
+                .WithAutomaticReconnect(new[]
+                {
+                    // NEW: graduated back-off — 0s, 2s, 5s, 10s, 30s, 30s, ...
+                    TimeSpan.Zero,
+                    TimeSpan.FromSeconds(2),
+                    TimeSpan.FromSeconds(5),
+                    TimeSpan.FromSeconds(10),
+                    TimeSpan.FromSeconds(30),
+                    TimeSpan.FromSeconds(30)
+                })
                 .Build();
 
-            _hubConnection.On<SimSnapshot>("ReceiveSnapshot", snapshot =>
-            {
-                OnSnapshotReceived?.Invoke(snapshot);
-            });
+            // ── Incoming messages ─────────────────────────────────────────────
+            _hubConnection.On<SimSnapshot>("ReceiveSnapshot", snap =>
+                OnSnapshotReceived?.Invoke(snap));
 
-            _hubConnection.On<string>("ReceiveAlert", message =>
+            _hubConnection.On<string>("ReceiveAlert", msg =>
+                OnAlertReceived?.Invoke(msg));
+
+            // ── Connection lifecycle ──────────────────────────────────────────
+            _hubConnection.Reconnected += _ =>
             {
-                OnAlertReceived?.Invoke(message);
-            });
+                OnConnected?.Invoke();
+                return Task.CompletedTask;
+            };
+
+            _hubConnection.Reconnecting += _ =>
+            {
+                OnDisconnected?.Invoke();
+                return Task.CompletedTask;
+            };
+
+            _hubConnection.Closed += _ =>
+            {
+                OnDisconnected?.Invoke();
+                return Task.CompletedTask;
+            };
         }
 
         public async Task ConnectAsync()
@@ -35,27 +67,35 @@ namespace AirportSim.Client.Connection
             try
             {
                 await _hubConnection.StartAsync();
-                Console.WriteLine("Connected to Simulation Server.");
+                OnConnected?.Invoke();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Connection failed: {ex.Message}");
+                Console.WriteLine($"[SimulationConnection] Connect failed: {ex.Message}");
+                OnDisconnected?.Invoke();
             }
         }
 
-        public async Task SetTimeScaleAsync(double scale)
-        {
-            if (_hubConnection.State == HubConnectionState.Connected)
-            {
-                await _hubConnection.SendAsync("SetTimeScale", scale);
-            }
-        }
+        // ── Commands → server ─────────────────────────────────────────────────
 
-        public async Task SetPausedAsync(bool isPaused)
+        public Task SetTimeScaleAsync(double scale)   => SendAsync("SetTimeScale", scale);
+        public Task SetPausedAsync(bool isPaused)      => SendAsync("SetPaused", isPaused);
+        public Task StepSpeedUpAsync()                 => SendAsync("StepSpeedUp");
+        public Task StepSpeedDownAsync()               => SendAsync("StepSpeedDown");
+        public Task DeclareEmergencyAsync()            => SendAsync("DeclareEmergency");  // NEW
+        public Task CycleWeatherAsync()                => SendAsync("CycleWeather");      // NEW
+
+        // NEW: safe fire-and-forget — silently drops if not connected
+        private async Task SendAsync(string method, params object[] args)
         {
-            if (_hubConnection.State == HubConnectionState.Connected)
+            if (!IsConnected) return;
+            try
             {
-                await _hubConnection.SendAsync("SetPaused", isPaused);
+                await _hubConnection.SendCoreAsync(method, args);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SimulationConnection] Send '{method}' failed: {ex.Message}");
             }
         }
     }

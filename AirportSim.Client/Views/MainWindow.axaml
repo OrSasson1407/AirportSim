@@ -3,9 +3,13 @@
         xmlns:views="clr-namespace:AirportSim.Client.Views"
         x:Class="AirportSim.Client.Views.MainWindow"
         Title="Airport ATC Simulator"
-        Width="1200" Height="600"
-        WindowStartupLocation="CenterScreen">
-    
+        Width="1280"
+        Height="720"
+        MinWidth="900"
+        MinHeight="540"
+        WindowStartupLocation="CenterScreen"
+        Background="#0A0C14">
+
     <views:SimulationView x:Name="MainSimView" />
 
 </Window>
