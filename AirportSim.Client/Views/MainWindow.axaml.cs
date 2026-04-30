@@ -7,7 +7,6 @@ namespace AirportSim.Client.Views
 {
     public partial class MainWindow : Window
     {
-        // NEW: public so App.axaml.cs can access it for graceful shutdown
         public MainViewModel? ViewModel { get; private set; }
 
         public MainWindow()
@@ -18,8 +17,6 @@ namespace AirportSim.Client.Views
 
             var simView = this.FindControl<SimulationView>("MainSimView");
             simView?.Initialize(ViewModel.Simulation);
-
-            // The splash screen is now dismissed manually by the StartSim_Click handler
         }
 
         private void StartSim_Click(object? sender, RoutedEventArgs e)
@@ -42,9 +39,8 @@ namespace AirportSim.Client.Views
             // 3. Connect to the server
             ViewModel?.Simulation.Start();
 
-            // Note: We'll need to send this layout choice to the Server!
-            // E.g., await ViewModel.Simulation.Connection.SetAirportLayoutAsync(layoutId);
-            // We will wire up that SignalR command in the backend next.
+            // 4. Send the layout choice to the server! (Fixes CS0219 warning)
+            _ = ViewModel?.Simulation.Connection.SetAirportLayoutAsync(layoutId);
         }
     }
 }

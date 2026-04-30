@@ -64,6 +64,9 @@ namespace AirportSim.Client.Connection
 
         public async Task ConnectAsync()
         {
+            // NEW: Prevent double-connection attempts
+            if (_hubConnection.State != HubConnectionState.Disconnected) return;
+
             try
             {
                 await _hubConnection.StartAsync();
@@ -83,7 +86,7 @@ namespace AirportSim.Client.Connection
         public Task DeclareEmergencyAsync()                => SendAsync("DeclareEmergency");  
         public Task CycleWeatherAsync()                    => SendAsync("CycleWeather");      
         public Task SetAirportLayoutAsync(string layoutId) => SendAsync("SetAirportLayout", layoutId);
-        public Task SetRvrAsync(int rvrMeters)             => SendAsync("SetRvr", rvrMeters); // NEW
+        public Task SetRvrAsync(int rvrMeters)             => SendAsync("SetRvr", rvrMeters); 
 
         private async Task SendAsync(string method, params object[] args)
         {

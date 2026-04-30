@@ -179,6 +179,7 @@ namespace AirportSim.Client.ViewModels
             }
         }
 
+        #pragma warning disable CA1416 // Mute Windows-only API warning
         private void PlaySound(string fileName)
         {
             Task.Run(() =>
@@ -190,20 +191,21 @@ namespace AirportSim.Client.ViewModels
 
                     if (File.Exists(fullPath))
                     {
-                        using var player = new System.Media.SoundPlayer(fullPath);
-                        player.Play();
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[Audio] Missing file: {fullPath}");
+                        // Check if file is empty to prevent crashes from dummy files
+                        if (new FileInfo(fullPath).Length > 0)
+                        {
+                            using var player = new System.Media.SoundPlayer(fullPath);
+                            player.Play();
+                        }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    Console.WriteLine($"[Audio] Failed to play {fileName}: {ex.Message}");
+                    // Silently ignore corrupted or empty .wav files
                 }
             });
         }
+        #pragma warning restore CA1416
 
         // ── Connection State ──────────────────────────────────────────────────
 
@@ -234,7 +236,6 @@ namespace AirportSim.Client.ViewModels
         public string WeatherText => TargetSnapshot != null
             ? WeatherIcon(TargetSnapshot.Weather) : "";
 
-        // NEW: Formatted RVR string
         public string RvrText => TargetSnapshot != null
             ? (TargetSnapshot.RvrMeters >= 10000 ? "10+ km" : $"{TargetSnapshot.RvrMeters}m") 
             : "–";

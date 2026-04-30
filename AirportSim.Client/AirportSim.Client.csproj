@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   
   <PropertyGroup>
-<OutputType>Exe</OutputType>
+    <OutputType>Exe</OutputType>
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -11,6 +11,13 @@
   <ItemGroup>
     <!-- Keep the Assets folder for future real icons/images -->
     <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
+  <!-- ── NEW: This is the missing block that copies your audio files! ── -->
+  <ItemGroup>
+    <None Update="Assets\Audio\*.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
