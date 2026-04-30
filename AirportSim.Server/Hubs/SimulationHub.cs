@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR;
 using AirportSim.Server.Simulation;
@@ -9,6 +10,7 @@ namespace AirportSim.Server.Hubs
     {
         Task ReceiveSnapshot(SimSnapshot snapshot);
         Task ReceiveAlert(string message);
+        Task ReceiveAudioTriggers(List<string> audioFiles); // NEW
     }
 
     public class SimulationHub : Hub<ISimulationClient>

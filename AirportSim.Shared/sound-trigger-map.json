@@ -1,0 +1,40 @@
+{
+  "Version": "1.0",
+  "Triggers": [
+    {
+      "Condition": "StatusChanged",
+      "StatusValue": "Emergency",
+      "AudioFile": "alarm_emergency.wav",
+      "Priority": "High",
+      "Loop": true
+    },
+    {
+      "Condition": "PhaseChanged",
+      "PhaseValue": "Approaching",
+      "AudioFile": "atc_cleared.wav",
+      "Priority": "Medium",
+      "Loop": false
+    },
+    {
+      "Condition": "PhaseChanged",
+      "PhaseValue": "GoAround",
+      "AudioFile": "atc_go_around.wav",
+      "Priority": "High",
+      "Loop": false
+    },
+    {
+      "Condition": "PhaseChanged",
+      "PhaseValue": "Taxiing",
+      "AudioFile": "engine_light.wav",
+      "Priority": "Low",
+      "Loop": true
+    },
+    {
+      "Condition": "PhaseChanged",
+      "PhaseValue": "Takeoff",
+      "AudioFile": "engine_heavy.wav",
+      "Priority": "Medium",
+      "Loop": false
+    }
+  ]
+}

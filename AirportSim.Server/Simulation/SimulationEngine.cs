@@ -24,6 +24,9 @@ namespace AirportSim.Server.Simulation
         private readonly Queue<Aircraft> _gateQueue = new();
         private readonly Random _rand = new();
 
+        // Audio Trigger Queue
+        private readonly List<string> _pendingAudio = new();
+
         private WeatherCondition  _weather = WeatherCondition.Clear;
         
         // Weather transition state
@@ -225,6 +228,31 @@ namespace AirportSim.Server.Simulation
                 
                 ac.Tick(simDeltaMs, _runway, _weather);
 
+                // ── Audio Trigger Map Detection (Step 7) ──────────────────────
+                if (statusBefore != AircraftStatus.Emergency && ac.State.Status == AircraftStatus.Emergency)
+                {
+                    _pendingAudio.Add("alarm_emergency.wav");
+                }
+
+                if (phaseBefore != ac.State.Phase)
+                {
+                    switch (ac.State.Phase)
+                    {
+                        case AircraftPhase.Approaching:
+                            _pendingAudio.Add("atc_cleared.wav");
+                            break;
+                        case AircraftPhase.GoAround:
+                            _pendingAudio.Add("atc_go_around.wav");
+                            break;
+                        case AircraftPhase.Taxiing:
+                            _pendingAudio.Add("engine_light.wav");
+                            break;
+                        case AircraftPhase.Takeoff:
+                            _pendingAudio.Add("engine_heavy.wav");
+                            break;
+                    }
+                }
+
                 // NEW: Detect if aircraft just entered an emergency state (e.g. Bingo Fuel)
                 if (statusBefore != AircraftStatus.Emergency && ac.State.Status == AircraftStatus.Emergency)
                 {
@@ -342,6 +370,16 @@ namespace AirportSim.Server.Simulation
             };
 
             await _hubContext.Clients.All.ReceiveSnapshot(snapshot);
+
+            // ── Broadcast Audio Events ────────────────────────────────────────
+            if (_pendingAudio.Any())
+            {
+                // NOTE: We will need to define this interface method in the next step!
+                // I have commented it out temporarily so your code still compiles.
+                // await _hubContext.Clients.All.ReceiveAudioTriggers(_pendingAudio.ToList());
+                
+                _pendingAudio.Clear();
+            }
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
