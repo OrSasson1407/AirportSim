@@ -25,12 +25,16 @@ namespace AirportSim.Shared.Models
         public double        Heading       { get; set; }
 
         // Status
-        public AircraftStatus Status       { get; set; } = AircraftStatus.Normal;
+        public AircraftStatus Status          { get; set; } = AircraftStatus.Normal;
+        public string         EmergencyReason { get; set; } = string.Empty;
 
         // Telemetry
         public int AltitudeFt    { get; set; }
         public int SpeedKts      { get; set; }
         public int GoAroundCount { get; set; }
+        
+        // NEW: Real-time telemetry for operational depth
+        public double CurrentFuelPercent { get; set; } = 100.0;
 
         // Gate assignment — set when spawned, used by renderer to position
         // the aircraft at the correct stand while parked

@@ -14,7 +14,7 @@ namespace AirportSim.Server.Simulation
         public double GoAroundChance { get; set; } = 0.08;
         public bool IsFinished { get; private set; }
         
-        // NEW: Expose if the last go-around was forced by weather minimums
+        // Expose if the last go-around was forced by weather minimums
         public bool LastGoAroundWasWeatherForced { get; private set; }
 
         public Aircraft(FlightEvent flightEvent)
@@ -31,17 +31,24 @@ namespace AirportSim.Server.Simulation
                 Position      = new SimPoint(0, 0),
                 Heading       = 0,
                 Status        = AircraftStatus.Normal,
-                GoAroundCount = 0
+                GoAroundCount = 0,
+                // Arrivals spawn with partial fuel (between 30% and 80%), Departures spawn full
+                CurrentFuelPercent = flightEvent.FlightType == FlightType.Arrival 
+                                        ? 30.0 + (_rand.NextDouble() * 50.0) 
+                                        : 100.0 
             };
 
             SetPhaseDuration();
             UpdatePositionAndHeading();
         }
 
-        // NEW: Passing WeatherCondition into Tick
+        // Passing WeatherCondition into Tick
         public void Tick(double simDeltaMs, RunwayController runway, WeatherCondition currentWeather)
         {
             if (IsFinished) return;
+
+            // NEW: Always update fuel consumption unless parked
+            UpdateFuel(simDeltaMs);
 
             // ── Holding: wait for the DEPARTURE runway to clear ───────────────
             if (State.Phase == AircraftPhase.Holding)
@@ -69,7 +76,10 @@ namespace AirportSim.Server.Simulation
                 if (State.PhaseProgress >= 1.0)
                 {
                     State.Phase           = AircraftPhase.Approaching;
-                    State.Status          = AircraftStatus.Normal;
+                    // Only revert status to Normal if we aren't currently in a Fuel Emergency
+                    if (State.Status != AircraftStatus.Emergency) 
+                        State.Status = AircraftStatus.Normal;
+                        
                     _timeInCurrentPhaseMs = 0;
                     State.PhaseProgress   = 0;
                     LastGoAroundWasWeatherForced = false; // Reset the flag
@@ -90,10 +100,52 @@ namespace AirportSim.Server.Simulation
                 AdvancePhase(runway, currentWeather);
         }
 
-        public void DeclareEmergency()
+        public void DeclareEmergency(string reason = "General Emergency")
         {
-            State.Status   = AircraftStatus.Emergency;
-            GoAroundChance = 0.0;
+            State.Status          = AircraftStatus.Emergency;
+            State.EmergencyReason = reason;
+            GoAroundChance        = 0.0; // An aircraft in an emergency MUST land
+        }
+
+        // ── Systems Updates (Fuel) ────────────────────────────────────────────
+        
+        private void UpdateFuel(double simDeltaMs)
+        {
+            // Negligible fuel burn while parked at the gate (APU / Ground Power)
+            if (State.Phase == AircraftPhase.Parked) return;
+
+            // Base rate: % lost per millisecond (adjusted for simulation speed)
+            double baseBurnRatePerMs = 0.00002; 
+            
+            // Engines work harder during certain phases
+            double phaseMultiplier = State.Phase switch
+            {
+                AircraftPhase.Takeoff   => 3.5,
+                AircraftPhase.Climbing  => 2.8,
+                AircraftPhase.GoAround  => 2.8,
+                AircraftPhase.Holding   => 1.5,
+                AircraftPhase.Taxiing   => 0.4,
+                AircraftPhase.Rollout   => 0.8,
+                _                       => 1.2
+            };
+
+            // Larger aircraft burn more fuel globally
+            double typeMultiplier = State.Type switch
+            {
+                AircraftType.Small  => 0.6,
+                AircraftType.Medium => 1.0,
+                AircraftType.Large  => 1.8,
+                _                   => 1.0
+            };
+
+            double burnAmount = baseBurnRatePerMs * phaseMultiplier * typeMultiplier * simDeltaMs;
+            State.CurrentFuelPercent = Math.Max(0, State.CurrentFuelPercent - burnAmount);
+
+            // Trigger an automatic emergency if fuel drops to a critical level
+            if (State.CurrentFuelPercent <= 10.0 && State.Status != AircraftStatus.Emergency)
+            {
+                DeclareEmergency("Low Fuel (Bingo)");
+            }
         }
 
         // ── Phase transitions ─────────────────────────────────────────────────
@@ -120,7 +172,7 @@ namespace AirportSim.Server.Simulation
 
                 case AircraftPhase.OnFinal:
                     
-                    // NEW: VISIBILITY CHECKS
+                    // VISIBILITY CHECKS
                     bool isLowVisibility = (weather == WeatherCondition.Fog || weather == WeatherCondition.Storm);
                     bool isCat3Equipped = (State.Type == AircraftType.Large); // Only Large are CAT III
                     
@@ -131,7 +183,10 @@ namespace AirportSim.Server.Simulation
                     {
                         runway?.ReleaseArrival(State.FlightId);
                         State.Phase         = AircraftPhase.GoAround;
-                        State.Status        = AircraftStatus.GoAround;
+                        // Don't overwrite an emergency status with a standard go-around status
+                        if (State.Status != AircraftStatus.Emergency)
+                            State.Status = AircraftStatus.GoAround;
+                            
                         State.GoAroundCount++;
                         LastGoAroundWasWeatherForced = forcedByWeather;
                     }

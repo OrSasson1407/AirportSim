@@ -58,6 +58,9 @@ namespace AirportSim.Client.Rendering
                 AgeFadeTrails(deltaMs);
                 DrawTrails(ctx, cx, cy, radius);
 
+                // Used for flashing emergencies
+                bool blinkFlash = (now / 400.0) % 2 > 1.0; 
+
                 foreach (var target in snap.ActiveAircraft)
                 {
                     var prev = prevSnap?.ActiveAircraft
@@ -79,27 +82,49 @@ namespace AirportSim.Client.Rendering
 
                     IBrush blipColor = target.Status switch
                     {
-                        AircraftStatus.Emergency => Brushes.Red,
+                        AircraftStatus.Emergency => blinkFlash ? Brushes.Red : Brushes.Yellow,
                         AircraftStatus.GoAround  => new SolidColorBrush(Color.FromRgb(255, 200, 0)),
                         _                        => target.FlightType == FlightType.Arrival
                             ? new SolidColorBrush(Color.FromRgb(0, 255, 180))
                             : new SolidColorBrush(Color.FromRgb(100, 220, 255))
                     };
 
-                    DrawDiamond(ctx, sx, sy, 5, blipColor);
+                    // Scale blip size based on aircraft type
+                    double blipSize = target.Type switch
+                    {
+                        AircraftType.Large => 7.0,
+                        AircraftType.Small => 4.0,
+                        _                  => 5.0
+                    };
 
-                    string alt   = target.AltitudeFt > 50
-                        ? $"{target.AltitudeFt / 100:D2}"
-                        : "GND";
-                    string label = $"{target.FlightId} {alt}";
+                    DrawDiamond(ctx, sx, sy, blipSize, blipColor);
 
-                    DrawRadarText(ctx, label, sx + 7, sy - 5, 9, blipColor);
+                    // Multi-line ATC Datablock
+                    string alt   = target.AltitudeFt > 50 ? $"A{(target.AltitudeFt / 100):D3}" : "GND";
+                    string spd   = $"S{target.SpeedKts:D3}";
+                    string fuel  = $"F:{target.CurrentFuelPercent:F0}%";
+                    
+                    string line1 = target.FlightId;
+                    string line2 = $"{alt} {spd}";
+                    string line3 = target.Status == AircraftStatus.Emergency 
+                                    ? $"! {target.EmergencyReason.ToUpper()} !" 
+                                    : fuel;
+
+                    IBrush textColor1 = blipColor;
+                    IBrush textColor2 = new SolidColorBrush(Color.FromArgb(200, 200, 255, 200)); // slightly dimmed for telemetry
+                    IBrush textColor3 = target.Status == AircraftStatus.Emergency && blinkFlash 
+                                            ? Brushes.Red 
+                                            : textColor2;
+
+                    DrawRadarText(ctx, line1, sx + 8, sy - 12, 10, textColor1, true);
+                    DrawRadarText(ctx, line2, sx + 8, sy - 1,   9, textColor2);
+                    DrawRadarText(ctx, line3, sx + 8, sy + 9,   9, textColor3, target.Status == AircraftStatus.Emergency);
                 }
             }
 
             DrawBezel(ctx, cx, cy, radius);
             DrawCompassLabels(ctx, cx, cy, radius);
-            DrawHud(ctx, snap, bounds);
+            DrawHud(ctx, snap, bounds, Environment.TickCount64);
         }
 
         // ── Background ────────────────────────────────────────────────────────
@@ -246,7 +271,7 @@ namespace AirportSim.Client.Rendering
 
         // ── HUD readout ───────────────────────────────────────────────────────
 
-        private void DrawHud(DrawingContext ctx, SimSnapshot snap, Rect bounds)
+        private void DrawHud(DrawingContext ctx, SimSnapshot snap, Rect bounds, double now)
         {
             double x = bounds.X + 6;
             double y = bounds.Y + bounds.Height - 30;
@@ -259,10 +284,10 @@ namespace AirportSim.Client.Rendering
             string line2 = emergency > 0 ? $"EMRG:{emergency} !" : $"{snap.SimulatedTime:HH:mm}z";
 
             IBrush hudColor   = new SolidColorBrush(Color.FromArgb(180, 0, 210, 90));
-            IBrush alertColor = new SolidColorBrush(Color.FromArgb(220, 255, 60, 60));
+            IBrush alertColor = (now / 300.0) % 2 > 1.0 ? Brushes.Red : Brushes.Yellow;
 
             DrawRadarText(ctx, line1, x, y,      10, hudColor);
-            DrawRadarText(ctx, line2, x, y + 13, 10, emergency > 0 ? alertColor : hudColor);
+            DrawRadarText(ctx, line2, x, y + 13, 10, emergency > 0 ? alertColor : hudColor, emergency > 0);
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────
@@ -288,13 +313,16 @@ namespace AirportSim.Client.Rendering
                                    double  x,
                                    double  y,
                                    double  size,
-                                   IBrush  brush)
+                                   IBrush  brush,
+                                   bool    bold = false)
         {
             var ft = new FormattedText(
                 text,
                 CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                _font, size, brush);
+                bold ? _fontBold : _font, 
+                size, 
+                brush);
             ctx.DrawText(ft, new Point(x, y));
         }
 

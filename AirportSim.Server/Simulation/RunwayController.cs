@@ -17,8 +17,11 @@ namespace AirportSim.Server.Simulation
 
         public readonly List<string> PendingAlerts = new();
 
-        // NEW: Weather closure flag
+        // Weather and Emergency flags
         public bool IsClosedForWeather { get; private set; }
+        
+        // NEW: Halts all departures if an emergency is incoming
+        public bool EmergencyLockdown { get; private set; } 
 
         // ── Public read access ────────────────────────────────────────────────
 
@@ -26,7 +29,7 @@ namespace AirportSim.Server.Simulation
         public RunwayStatus DepartureStatus => _departureRunway.Status;
 
         public bool ArrivalFree   => _arrivalRunway.IsFree;
-        public bool DepartureFree => _departureRunway.IsFree;
+        public bool DepartureFree => _departureRunway.IsFree && !EmergencyLockdown;
 
         // Snapshot data for broadcast
         public List<RunwaySnapshot> GetSnapshots() => new()
@@ -35,18 +38,34 @@ namespace AirportSim.Server.Simulation
             _departureRunway.ToSnapshot()
         };
 
-        // ── Weather Control ───────────────────────────────────────────────────
+        // ── Environmental & Emergency Control ─────────────────────────────────
 
         public void SetWeatherClosure(bool isClosed)
         {
             IsClosedForWeather = isClosed;
+            if (isClosed)
+            {
+                PendingAlerts.Add("⛈ ALERT: Runways closed due to severe weather minimums.");
+            }
+        }
+
+        public void SetEmergencyLockdown(bool isLocked)
+        {
+            EmergencyLockdown = isLocked;
+            if (isLocked)
+            {
+                PendingAlerts.Add("🚨 AIRFIELD LOCKDOWN: All departures holding for emergency arrival.");
+            }
+            else
+            {
+                PendingAlerts.Add("✅ LOCKDOWN LIFTED: Normal departure operations resuming.");
+            }
         }
 
         // ── Arrival runway ────────────────────────────────────────────────────
 
         public bool TryOccupyArrival(string flightId)
         {
-            // Reject clearances if runway is closed for weather
             if (IsClosedForWeather) return false;
             return _arrivalRunway.TryOccupy(flightId);
         }
@@ -58,8 +77,7 @@ namespace AirportSim.Server.Simulation
 
         public bool TryOccupyDeparture(string flightId)
         {
-            // Reject clearances if runway is closed for weather
-            if (IsClosedForWeather) return false;
+            if (IsClosedForWeather || EmergencyLockdown) return false;
             return _departureRunway.TryOccupy(flightId);
         }
 
@@ -70,15 +88,17 @@ namespace AirportSim.Server.Simulation
 
         public void DeclareEmergencyOverride(string flightId)
         {
-            if (!_arrivalRunway.IsFree)
+            if (!_arrivalRunway.IsFree && _arrivalRunway.OccupantId != flightId)
             {
                 PendingAlerts.Add(
-                    $"🚨 Emergency override: {flightId} cleared 28L from {_arrivalRunway.OccupantId}");
+                    $"🚨 EMERGENCY OVERRIDE: {flightId} forcing go-around for {_arrivalRunway.OccupantId} on 28L!");
                 _arrivalRunway.ForceRelease();
             }
+            
+            SetEmergencyLockdown(true);
         }
 
-        // ── Safety tick: detect stuck aircraft on either runway ───────────────
+        // ── Safety tick: detect stuck aircraft and process cooldowns ──────────
 
         public void Tick(double simDeltaMs)
         {
@@ -88,15 +108,24 @@ namespace AirportSim.Server.Simulation
 
         private void TickSlot(RunwaySlot slot, double simDeltaMs, string name)
         {
-            if (slot.Status != RunwayStatus.Occupied) return;
-
-            slot.OccupiedForSimMs += simDeltaMs;
-
-            if (slot.OccupiedForSimMs > 8 * 60_000)
+            // Process wake turbulence/separation cooldown
+            if (slot.CooldownMs > 0)
             {
-                PendingAlerts.Add(
-                    $"⚠ Runway {name} incursion timeout — forcing clear (was: {slot.OccupantId})");
-                slot.ForceRelease();
+                slot.CooldownMs -= simDeltaMs;
+                if (slot.CooldownMs < 0) slot.CooldownMs = 0;
+            }
+
+            // Process occupied timeout
+            if (slot.Status == RunwayStatus.Occupied)
+            {
+                slot.OccupiedForSimMs += simDeltaMs;
+
+                if (slot.OccupiedForSimMs > 8 * 60_000) // 8 virtual minutes
+                {
+                    PendingAlerts.Add(
+                        $"⚠ INCURSION: Runway {name} timeout — forcing clear (was: {slot.OccupantId})");
+                    slot.ForceRelease();
+                }
             }
         }
 
@@ -109,8 +138,12 @@ namespace AirportSim.Server.Simulation
             public RunwayStatus Status        { get; private set; } = RunwayStatus.Free;
             public string?      OccupantId    { get; private set; }
             public double       OccupiedForSimMs { get; set; }
+            
+            // NEW: Separation timer
+            public double       CooldownMs    { get; set; }
 
-            public bool IsFree => Status == RunwayStatus.Free;
+            // Runway is only free if status is Free AND the wake turbulence cooldown is finished
+            public bool IsFree => Status == RunwayStatus.Free && CooldownMs <= 0;
 
             public RunwaySlot(RunwayId id, string name) { Id = id; Name = name; }
 
@@ -120,6 +153,7 @@ namespace AirportSim.Server.Simulation
                 Status           = RunwayStatus.Occupied;
                 OccupantId       = flightId;
                 OccupiedForSimMs = 0;
+                CooldownMs       = 0;
                 return true;
             }
 
@@ -134,6 +168,8 @@ namespace AirportSim.Server.Simulation
                 Status           = RunwayStatus.Free;
                 OccupantId       = null;
                 OccupiedForSimMs = 0;
+                // Enforce 1.5 virtual minutes of separation (wake turbulence) before next aircraft can enter
+                CooldownMs       = 1.5 * 60_000; 
             }
 
             public RunwaySnapshot ToSnapshot() => new()

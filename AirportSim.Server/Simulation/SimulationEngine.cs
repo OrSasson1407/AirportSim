@@ -64,7 +64,7 @@ namespace AirportSim.Server.Simulation
         public void InjectEmergency()
         {
             _scheduler.InjectEmergency(AircraftType.Medium, FlightType.Arrival);
-            PushAlert("🚨 MAYDAY — emergency aircraft added to queue");
+            PushAlert("🚨 MAYDAY — manual emergency aircraft added to scheduler");
         }
 
         public WeatherCondition CycleWeather()
@@ -171,8 +171,12 @@ namespace AirportSim.Server.Simulation
 
                 if (aircraft.State.FlightId.StartsWith("MAYDAY"))
                 {
-                    aircraft.DeclareEmergency();
+                    aircraft.DeclareEmergency("General Emergency");
                     PushAlert($"🚨 {aircraft.State.FlightId} on emergency approach");
+                    
+                    // Trigger immediate airfield lockdown for the incoming Mayday
+                    _runway.DeclareEmergencyOverride(aircraft.State.FlightId);
+                    
                     AssignGate(aircraft, flightEvent.Gate);
                     _activeAircraft.Add(aircraft);
                 }
@@ -217,9 +221,16 @@ namespace AirportSim.Server.Simulation
             foreach (var ac in _activeAircraft.ToList())
             {
                 var phaseBefore = ac.State.Phase;
+                var statusBefore = ac.State.Status;
                 
-                // FIXED: Now passing the current weather into the Tick method
                 ac.Tick(simDeltaMs, _runway, _weather);
+
+                // NEW: Detect if aircraft just entered an emergency state (e.g. Bingo Fuel)
+                if (statusBefore != AircraftStatus.Emergency && ac.State.Status == AircraftStatus.Emergency)
+                {
+                    PushAlert($"🚨 EMERGENCY DECLARED: {ac.State.FlightId} ({ac.State.EmergencyReason})");
+                    _runway.DeclareEmergencyOverride(ac.State.FlightId);
+                }
 
                 // Arrival just reached Parked — assign a gate
                 if (phaseBefore == AircraftPhase.Taxiing &&
@@ -248,7 +259,6 @@ namespace AirportSim.Server.Simulation
                     _goAroundsToday++;
                     _conflicts.RecordGoAround(simNowMs);
                     
-                    // FIXED: Check if it was forced by weather minimums
                     if (ac.LastGoAroundWasWeatherForced)
                     {
                         PushAlert($"🌫️ {ac.State.FlightId} ({ac.State.Type}) aborted: Below approach minimums");
@@ -259,12 +269,18 @@ namespace AirportSim.Server.Simulation
                     }
                 }
 
-                // Landing completed
+                // Landing completed - lift lockdown if it was an emergency
                 if (phaseBefore == AircraftPhase.Rollout &&
                     ac.State.Phase == AircraftPhase.Taxiing)
                 {
                     _arrivalsToday++;
                     PushAlert($"✅ {ac.State.FlightId} landed and vacated 28L");
+                    
+                    if (ac.State.Status == AircraftStatus.Emergency)
+                    {
+                        PushAlert($"🟢 {ac.State.FlightId} is safe on taxiway. Lifting airfield lockdown.");
+                        _runway.SetEmergencyLockdown(false);
+                    }
                 }
 
                 // Departure completed
