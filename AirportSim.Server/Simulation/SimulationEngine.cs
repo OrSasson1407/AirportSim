@@ -24,17 +24,16 @@ namespace AirportSim.Server.Simulation
         private readonly Queue<Aircraft> _gateQueue = new();
         private readonly Random _rand = new();
 
-        // Audio Trigger Queue
         private readonly List<string> _pendingAudio = new();
 
         private WeatherCondition  _weather = WeatherCondition.Clear;
-        
-        // Weather transition state
         private WeatherCondition _previousWeather = WeatherCondition.Clear;
         private double _weatherTransitionRemainingMs = 0;
-        private const double WeatherTransitionDurationMs = 60000; // 60 simulated seconds
+        private const double WeatherTransitionDurationMs = 60000; 
 
-        // Microburst / Wind Shear state
+        // NEW: Track RVR
+        public int RvrMeters { get; private set; } = 10000;
+
         private bool _isWindShearActive;
         private double _windShearRemainingMs;
 
@@ -62,8 +61,6 @@ namespace AirportSim.Server.Simulation
             _activeAircraft = new List<Aircraft>();
         }
 
-        // ── Public API ────────────────────────────────────────────────────────
-
         public void InjectEmergency()
         {
             _scheduler.InjectEmergency(AircraftType.Medium, FlightType.Arrival);
@@ -76,15 +73,37 @@ namespace AirportSim.Server.Simulation
             int next = ((int)_weather + 1) % Enum.GetValues<WeatherCondition>().Length;
             _weather = (WeatherCondition)next;
             
-            // Start the 60-second transition timer
             _weatherTransitionRemainingMs = WeatherTransitionDurationMs;
             
+            // NEW: Automatically adjust RVR based on standard weather profiles
+            RvrMeters = _weather switch {
+                WeatherCondition.Clear => 10000,
+                WeatherCondition.Cloudy => 8000,
+                WeatherCondition.Rain => 3000,
+                WeatherCondition.Storm => 800,
+                WeatherCondition.Fog => 250, // Below CAT II minimums! Will cause diversions.
+                _ => 10000
+            };
+
             ApplyWeatherEffects();
-            PushAlert($"🌤 Weather changing to {_weather}...");
+            PushAlert($"🌤 Weather changing to {_weather}. RVR now {RvrMeters}m.");
             return _weather;
         }
 
-        // ── Background loop ───────────────────────────────────────────────────
+        // NEW: Manual override from UI Slider
+        public void SetRvr(int rvr)
+        {
+            RvrMeters = rvr;
+            PushAlert($"👁 RVR manually set to {(rvr >= 10000 ? "10+ km" : rvr + "m")}");
+        }
+
+        public void LoadLayout(string layoutId)
+        {
+            _activeAircraft.Clear();
+            _gateQueue.Clear();
+            _gates.LoadLayout(layoutId);
+            PushAlert($"🌍 Loaded airport layout: {layoutId.ToUpper()}");
+        }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -120,25 +139,20 @@ namespace AirportSim.Server.Simulation
             }
         }
 
-        // ── Simulation tick ───────────────────────────────────────────────────
-
         private void UpdateSimulation(int realElapsedMs)
         {
             Clock.Tick(realElapsedMs);
             _scheduler.Update(Clock.SimulatedNow);
 
             double simDeltaMs = realElapsedMs * Clock.TimeScale;
-            double simNowMs   = Clock.SimulatedNow
-                                      .Subtract(DateTime.Today).TotalMilliseconds;
+            double simNowMs   = Clock.SimulatedNow.Subtract(DateTime.Today).TotalMilliseconds;
 
-            // Tick weather transition timer
             if (_weatherTransitionRemainingMs > 0)
             {
                 _weatherTransitionRemainingMs -= simDeltaMs;
                 if (_weatherTransitionRemainingMs < 0) _weatherTransitionRemainingMs = 0;
             }
 
-            // ── Microburst / Wind Shear Tick ─────────────────────────────
             if (_isWindShearActive)
             {
                 _windShearRemainingMs -= simDeltaMs;
@@ -151,21 +165,17 @@ namespace AirportSim.Server.Simulation
             }
             else if (_weather == WeatherCondition.Storm || _weather == WeatherCondition.Rain)
             {
-                // Storm: ~1 event every 5 sim minutes (300,000 ms)
-                // Rain:  ~1 event every 20 sim minutes (1,200,000 ms)
                 double chanceThreshold = (_weather == WeatherCondition.Storm) ? 300000.0 : 1200000.0;
                 
                 if (_rand.NextDouble() < (simDeltaMs / chanceThreshold))
                 {
                     _isWindShearActive = true;
-                    // Event lasts between 2 and 3.5 simulated minutes
                     _windShearRemainingMs = 120_000 + _rand.NextDouble() * 90_000;
                     _runway.SetWeatherClosure(true);
                     PushAlert("🌪 WINDSHEAR / MICROBURST DETECTED! Runways closed!");
                 }
             }
 
-            // ── Spawn new flights ─────────────────────────────────────────────
             var next = _scheduler.PeekNextFlight();
             if (next != null && Clock.SimulatedNow >= next.ScheduledTime)
             {
@@ -176,10 +186,7 @@ namespace AirportSim.Server.Simulation
                 {
                     aircraft.DeclareEmergency("General Emergency");
                     PushAlert($"🚨 {aircraft.State.FlightId} on emergency approach");
-                    
-                    // Trigger immediate airfield lockdown for the incoming Mayday
                     _runway.DeclareEmergencyOverride(aircraft.State.FlightId);
-                    
                     AssignGate(aircraft, flightEvent.Gate);
                     _activeAircraft.Add(aircraft);
                 }
@@ -206,7 +213,6 @@ namespace AirportSim.Server.Simulation
                 }
             }
 
-            // ── Drain gate queue ──────────────────────────────────────────────
             while (_gateQueue.Count > 0 && _gates.HasFreeGate())
             {
                 var queued = _gateQueue.Dequeue();
@@ -215,20 +221,18 @@ namespace AirportSim.Server.Simulation
                 PushAlert($"🅿 {queued.State.FlightId} gate assigned → {queued.State.AssignedGate}");
             }
 
-            // ── Tick runway safety timer ──────────────────────────────────────
             _runway.Tick(simDeltaMs);
             foreach (var alert in _runway.PendingAlerts) PushAlert(alert);
             _runway.PendingAlerts.Clear();
 
-            // ── Tick all active aircraft ──────────────────────────────────────
             foreach (var ac in _activeAircraft.ToList())
             {
                 var phaseBefore = ac.State.Phase;
                 var statusBefore = ac.State.Status;
                 
-                ac.Tick(simDeltaMs, _runway, _weather);
+                // NEW: Pass RvrMeters to the Aircraft Tick
+                ac.Tick(simDeltaMs, _runway, _weather, RvrMeters);
 
-                // ── Audio Trigger Map Detection (Step 7) ──────────────────────
                 if (statusBefore != AircraftStatus.Emergency && ac.State.Status == AircraftStatus.Emergency)
                 {
                     _pendingAudio.Add("alarm_emergency.wav");
@@ -253,14 +257,17 @@ namespace AirportSim.Server.Simulation
                     }
                 }
 
-                // NEW: Detect if aircraft just entered an emergency state (e.g. Bingo Fuel)
                 if (statusBefore != AircraftStatus.Emergency && ac.State.Status == AircraftStatus.Emergency)
                 {
                     PushAlert($"🚨 EMERGENCY DECLARED: {ac.State.FlightId} ({ac.State.EmergencyReason})");
                     _runway.DeclareEmergencyOverride(ac.State.FlightId);
                 }
 
-                // Arrival just reached Parked — assign a gate
+                if (statusBefore != AircraftStatus.Diverting && ac.State.Status == AircraftStatus.Diverting)
+                {
+                    PushAlert($"↩️ DIVERSION DECLARED: {ac.State.FlightId} proceeding to alternate. Reason: {ac.State.EmergencyReason}");
+                }
+
                 if (phaseBefore == AircraftPhase.Taxiing &&
                     ac.State.Phase == AircraftPhase.Parked &&
                     ac.State.FlightType == FlightType.Arrival)
@@ -271,7 +278,6 @@ namespace AirportSim.Server.Simulation
                         PushAlert($"🅿 {ac.State.FlightId} parked at gate {ac.State.AssignedGate}");
                 }
 
-                // Departure left the gate — free it
                 if (phaseBefore == AircraftPhase.Parked &&
                     ac.State.Phase == AircraftPhase.Taxiing &&
                     ac.State.FlightType == FlightType.Departure)
@@ -280,7 +286,6 @@ namespace AirportSim.Server.Simulation
                     PushAlert($"🚪 {ac.State.FlightId} pushed back from {ac.State.AssignedGate}");
                 }
 
-                // Go-around detected
                 if (phaseBefore == AircraftPhase.OnFinal &&
                     ac.State.Phase == AircraftPhase.GoAround)
                 {
@@ -297,7 +302,6 @@ namespace AirportSim.Server.Simulation
                     }
                 }
 
-                // Landing completed - lift lockdown if it was an emergency
                 if (phaseBefore == AircraftPhase.Rollout &&
                     ac.State.Phase == AircraftPhase.Taxiing)
                 {
@@ -311,7 +315,6 @@ namespace AirportSim.Server.Simulation
                     }
                 }
 
-                // Departure completed
                 if (phaseBefore == AircraftPhase.Climbing &&
                     ac.State.Phase == AircraftPhase.Departed)
                 {
@@ -324,17 +327,19 @@ namespace AirportSim.Server.Simulation
                 {
                     _gates.Release(ac.State.FlightId);
                     _activeAircraft.Remove(ac);
+                    
+                    if (ac.State.Phase == AircraftPhase.Diverted)
+                    {
+                        PushAlert($"🛬 {ac.State.FlightId} has successfully diverted out of local airspace.");
+                    }
                 }
             }
 
-            // ── Run conflict detection ────────────────────────────────────────
             var states = _activeAircraft.Select(a => a.State).ToList();
             _conflicts.Check(states, simNowMs, simDeltaMs);
             foreach (var alert in _conflicts.PendingAlerts)
                 PushAlert(alert);
         }
-
-        // ── Gate assignment ───────────────────────────────────────────────────
 
         private bool AssignGate(Aircraft aircraft, string preferred)
         {
@@ -346,8 +351,6 @@ namespace AirportSim.Server.Simulation
             aircraft.State.GateY        = result.Value.gateY;
             return true;
         }
-
-        // ── Broadcast ─────────────────────────────────────────────────────────
 
         private async Task BroadcastSnapshot()
         {
@@ -363,6 +366,7 @@ namespace AirportSim.Server.Simulation
                 PreviousWeather     = _previousWeather,
                 WeatherTransitionProgress = 1.0 - (_weatherTransitionRemainingMs / WeatherTransitionDurationMs),
                 IsWindShearActive   = _isWindShearActive,
+                RvrMeters           = this.RvrMeters, // NEW
                 RecentAlerts        = _alertLog.TakeLast(5).Reverse().ToList(),
                 TotalArrivalsToday  = _arrivalsToday,
                 TotalDeparturesToay = _departuresToday,
@@ -371,18 +375,12 @@ namespace AirportSim.Server.Simulation
 
             await _hubContext.Clients.All.ReceiveSnapshot(snapshot);
 
-            // ── Broadcast Audio Events ────────────────────────────────────────
             if (_pendingAudio.Any())
             {
-                // NOTE: We will need to define this interface method in the next step!
-                // I have commented it out temporarily so your code still compiles.
-                // await _hubContext.Clients.All.ReceiveAudioTriggers(_pendingAudio.ToList());
-                
+                await _hubContext.Clients.All.ReceiveAudioTriggers(_pendingAudio.ToList());
                 _pendingAudio.Clear();
             }
         }
-
-        // ── Helpers ───────────────────────────────────────────────────────────
 
         private void PushAlert(string message)
         {

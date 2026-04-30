@@ -10,20 +10,17 @@ namespace AirportSim.Server.Hubs
     {
         Task ReceiveSnapshot(SimSnapshot snapshot);
         Task ReceiveAlert(string message);
-        Task ReceiveAudioTriggers(List<string> audioFiles); // NEW
+        Task ReceiveAudioTriggers(List<string> audioFiles);
     }
 
     public class SimulationHub : Hub<ISimulationClient>
     {
         private readonly SimulationEngine _engine;
 
-        // SimulationEngine is registered as a singleton so we can inject it here
         public SimulationHub(SimulationEngine engine)
         {
             _engine = engine;
         }
-
-        // ── Client → Server commands ──────────────────────────────────────────
 
         public async Task SetTimeScale(double scale)
         {
@@ -38,7 +35,6 @@ namespace AirportSim.Server.Hubs
             await Clients.All.ReceiveAlert(status);
         }
 
-        // NEW: step speed up / down (maps to the preset ladder in SimClock)
         public async Task StepSpeedUp()
         {
             double applied = _engine.Clock.StepUp();
@@ -51,18 +47,29 @@ namespace AirportSim.Server.Hubs
             await Clients.All.ReceiveAlert($"⏪ Speed → {applied}x");
         }
 
-        // NEW: declare an emergency arrival (spawns a priority MAYDAY flight)
         public async Task DeclareEmergency()
         {
             _engine.InjectEmergency();
             await Clients.All.ReceiveAlert("🚨 MAYDAY declared — emergency aircraft inbound");
         }
 
-        // NEW: skip to next weather state (for testing / demo)
         public async Task CycleWeather()
         {
             var next = _engine.CycleWeather();
             await Clients.All.ReceiveAlert($"🌤 Weather changed to {next}");
+        }
+
+        public async Task SetAirportLayout(string layoutId)
+        {
+            _engine.LoadLayout(layoutId); 
+            await Clients.All.ReceiveAlert($"🌍 Airport layout changed to {layoutId.ToUpper()}");
+        }
+
+        // NEW: Allow UI to override the RVR
+        public Task SetRvr(int rvrMeters)
+        {
+            _engine.SetRvr(rvrMeters);
+            return Task.CompletedTask;
         }
     }
 }

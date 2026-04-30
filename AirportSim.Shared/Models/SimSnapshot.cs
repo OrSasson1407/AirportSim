@@ -39,8 +39,11 @@ namespace AirportSim.Shared.Models
         public WeatherCondition PreviousWeather { get; set; } = WeatherCondition.Clear;
         public double WeatherTransitionProgress { get; set; } = 1.0; // 0.0 to 1.0
 
-        // NEW: Microburst / Wind shear state
+        // Microburst / Wind shear state
         public bool IsWindShearActive { get; set; }
+        
+        // NEW: Runway Visual Range (in meters)
+        public int RvrMeters { get; set; } = 10000;
 
         // Alert log (last 5 events, newest first)
         public List<string> RecentAlerts { get; set; } = new();
