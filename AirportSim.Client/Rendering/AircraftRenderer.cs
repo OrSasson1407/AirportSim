@@ -117,7 +117,6 @@ namespace AirportSim.Client.Rendering
 
             IBrush fill = GetAircraftColor(ac);
             
-            // Adjust scale based on aircraft type
             double scale = ac.Type switch
             {
                 AircraftType.Small => 0.8,
@@ -125,19 +124,23 @@ namespace AirportSim.Client.Rendering
                 _ => 1.2
             };
 
-            // Inverse scale the outline so the stroke thickness remains consistent 
-            // regardless of whether it's a small or large plane.
             var outline = new Pen(Brushes.White, 1.0 / scale);
 
-            // The SVG is roughly 24x24, meaning its visual center is at 12,12.
-            // The nose points UP (Y=0) in the SVG. Our 0 heading is East (+X).
-            // We translate to center, scale it, and rotate by heading + 90 to align.
             using (ctx.PushTransform(
                 Matrix.CreateTranslation(-12, -12) * 
                 Matrix.CreateScale(scale, scale) * 
                 Matrix.CreateRotation((heading + 90) * Math.PI / 180.0)))
             {
                 ctx.DrawGeometry(fill, outline, _planeGeometry);
+
+                // NEW: Draw a pushback tug attached to the nose
+                if (ac.Phase == AircraftPhase.Pushback)
+                {
+                    // In SVG space, the plane's nose is at (11.5, 2)
+                    // We draw a small golden rectangle right in front of it
+                    var tugRect = new Rect(10, -4, 4, 6);
+                    ctx.FillRectangle(Brushes.Goldenrod, tugRect);
+                }
             }
         }
 
@@ -163,32 +166,28 @@ namespace AirportSim.Client.Rendering
                                double         worldX,
                                double         worldY)
         {
-            // Label offset — above and to the right of the aircraft
             const double lx = 22;
             const double ly = -42;
 
-            // Leader line from aircraft centre to label
             ctx.DrawLine(
                 new Pen(new SolidColorBrush(Color.FromArgb(160, 255, 255, 255)), 0.8),
                 new Point(0, 0),
                 new Point(lx, ly + 36));
 
-            // Build label lines
             string line1 = ac.FlightId;
             string line2 = ac.Phase.ToString();
             string line3 = ac.AltitudeFt > 50
                 ? $"{ac.AltitudeFt:N0} ft  {ac.SpeedKts} kts"
                 : $"Ground  {ac.SpeedKts} kts";
 
-            // Status badge text
             string? badge = ac.Status switch
             {
                 AircraftStatus.Emergency => "MAYDAY",
                 AircraftStatus.GoAround  => "GO-AROUND",
+                AircraftStatus.Diverting => "DIVERTED",
                 _                        => null
             };
 
-            // Background pill for readability
             double boxW = 108;
             double boxH = badge != null ? 62 : 48;
 
@@ -197,14 +196,12 @@ namespace AirportSim.Client.Rendering
                 new Rect(lx - 2, ly, boxW, boxH),
                 4);
 
-            // Flight ID — bold, coloured dynamically
             IBrush idColor = GetAircraftColor(ac);
 
             DrawText(ctx, line1, _labelBold, 13, idColor,     new Point(lx + 4, ly + 4));
             DrawText(ctx, line2, _labelFont, 11, Brushes.LightGray, new Point(lx + 4, ly + 20));
             DrawText(ctx, line3, _labelFont, 10, Brushes.Gray,      new Point(lx + 4, ly + 33));
 
-            // Status badge
             if (badge != null)
             {
                 IBrush badgeBg = ac.Status == AircraftStatus.Emergency
@@ -229,15 +226,12 @@ namespace AirportSim.Client.Rendering
             if (!_flashAccum.ContainsKey(flightId))
                 _flashAccum[flightId] = 0;
 
-            // We advance flash accum using a fixed estimate since we don't
-            // have realDeltaMs here — the canvas 60fps loop handles accuracy
             _flashAccum[flightId] += 16.6;
 
             bool flashOn = (_flashAccum[flightId] % (FlashIntervalMs * 2)) < FlashIntervalMs;
 
             if (flashOn)
             {
-                // Expanding red ring
                 double radius = 18 + ((_flashAccum[flightId] % FlashIntervalMs)
                                       / FlashIntervalMs) * 12;
 
@@ -246,7 +240,6 @@ namespace AirportSim.Client.Rendering
                     new Point(x, y),
                     radius, radius);
 
-                // Inner solid dot
                 ctx.DrawEllipse(
                     new SolidColorBrush(Color.FromArgb(200, 255, 60, 60)),
                     null,
@@ -270,7 +263,7 @@ namespace AirportSim.Client.Rendering
             bool isFlying = ac.Phase is
                 AircraftPhase.Takeoff   or AircraftPhase.Climbing  or
                 AircraftPhase.Approaching or AircraftPhase.OnFinal or
-                AircraftPhase.GoAround;
+                AircraftPhase.GoAround or AircraftPhase.Diverted;
 
             if (isFlying)
             {
@@ -278,7 +271,6 @@ namespace AirportSim.Client.Rendering
                 double tailX = x - Math.Cos(rad) * 16;
                 double tailY = y - Math.Sin(rad) * 16;
 
-                // Larger planes leave more particles
                 int spawnCount = ac.Type switch
                 {
                     AircraftType.Large  => 3,
@@ -297,7 +289,6 @@ namespace AirportSim.Client.Rendering
                     });
             }
 
-            // Draw and age particles
             for (int i = particles.Count - 1; i >= 0; i--)
             {
                 var p = particles[i];
@@ -305,8 +296,7 @@ namespace AirportSim.Client.Rendering
 
                 if (p.Life <= 0) { particles.RemoveAt(i); continue; }
 
-                // Emergency aircraft leave a reddish trail
-                Color trailColor = ac.Status == AircraftStatus.Emergency
+                Color trailColor = ac.Status == AircraftStatus.Emergency || ac.Status == AircraftStatus.Diverting
                     ? Color.FromArgb((byte)(140 * p.Life), 255, 120, 80)
                     : Color.FromArgb((byte)(130 * p.Life), 220, 220, 220);
 
@@ -318,8 +308,6 @@ namespace AirportSim.Client.Rendering
                     p.Size * p.Life);
             }
         }
-
-        // ── Math ──────────────────────────────────────────────────────────────
 
         private static void DrawText(DrawingContext ctx,
                                      string         text,

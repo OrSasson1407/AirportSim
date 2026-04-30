@@ -112,10 +112,19 @@
                                        FontSize="26" FontWeight="Bold"
                                        FontFamily="Consolas"/>
                             <Border Height="1" Background="{DynamicResource AtcBorderSubtle}" Margin="0,2,0,2"/>
-                            <TextBlock x:Name="WeatherText"
-                                       Foreground="{DynamicResource AtcPrimary}"
-                                       FontSize="11" FontWeight="SemiBold"
-                                       LetterSpacing="0.5"/>
+                            
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock x:Name="WeatherText" Grid.Column="0"
+                                           Foreground="{DynamicResource AtcPrimary}"
+                                           FontSize="11" FontWeight="SemiBold"
+                                           LetterSpacing="0.5"/>
+                                <!-- NEW: RVR Readout -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="RVR:" FontSize="10" Foreground="{DynamicResource AtcTextMuted}" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="RvrValueText" Text="10+ km" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AtcAccent}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                            
                         </StackPanel>
                     </Border>
 
@@ -194,6 +203,17 @@
                     <StackPanel Margin="12,14,12,0" Spacing="8">
                         <TextBlock Classes="SectionLabel" Text="ENVIRONMENT" Margin="2,0,0,2"/>
                         <Button Content="🌤  Refresh Weather" Click="Weather_Click" Classes="SidebarBtn" FontSize="12"/>
+                        
+                        <!-- NEW: Manual RVR control slider -->
+                        <Border Background="{DynamicResource AtcSurface1}" CornerRadius="6" Padding="10,8">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="MANUAL RVR OVERRIDE" FontSize="9" Foreground="{DynamicResource AtcTextMuted}" FontWeight="Bold"/>
+                                <Slider x:Name="RvrSlider" 
+                                        Minimum="50" Maximum="10000" Value="10000" 
+                                        TickFrequency="50" IsSnapToTickEnabled="True"
+                                        Foreground="{DynamicResource AtcPrimary}"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
 
                     <!-- Emergency zone -->

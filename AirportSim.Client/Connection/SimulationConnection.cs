@@ -10,14 +10,12 @@ namespace AirportSim.Client.Connection
     {
         private readonly HubConnection _hubConnection;
 
-        // ── Events ────────────────────────────────────────────────────────────
         public event Action<SimSnapshot>? OnSnapshotReceived;
         public event Action<string>?      OnAlertReceived;
-        public event Action<List<string>>? OnAudioTriggersReceived; // NEW
+        public event Action<List<string>>? OnAudioTriggersReceived; 
         public event Action?              OnConnected;
-        public event Action?              OnDisconnected;  // NEW
+        public event Action?              OnDisconnected;  
 
-        // NEW: expose connection state for the UI status bar
         public HubConnectionState State => _hubConnection.State;
         public bool IsConnected => _hubConnection.State == HubConnectionState.Connected;
 
@@ -27,7 +25,6 @@ namespace AirportSim.Client.Connection
                 .WithUrl("http://localhost:2001/simhub")
                 .WithAutomaticReconnect(new[]
                 {
-                    // NEW: graduated back-off — 0s, 2s, 5s, 10s, 30s, 30s, ...
                     TimeSpan.Zero,
                     TimeSpan.FromSeconds(2),
                     TimeSpan.FromSeconds(5),
@@ -37,7 +34,6 @@ namespace AirportSim.Client.Connection
                 })
                 .Build();
 
-            // ── Incoming messages ─────────────────────────────────────────────
             _hubConnection.On<SimSnapshot>("ReceiveSnapshot", snap =>
                 OnSnapshotReceived?.Invoke(snap));
 
@@ -45,9 +41,8 @@ namespace AirportSim.Client.Connection
                 OnAlertReceived?.Invoke(msg));
 
             _hubConnection.On<List<string>>("ReceiveAudioTriggers", files =>
-                OnAudioTriggersReceived?.Invoke(files)); // NEW
+                OnAudioTriggersReceived?.Invoke(files)); 
 
-            // ── Connection lifecycle ──────────────────────────────────────────
             _hubConnection.Reconnected += _ =>
             {
                 OnConnected?.Invoke();
@@ -81,16 +76,15 @@ namespace AirportSim.Client.Connection
             }
         }
 
-        // ── Commands → server ─────────────────────────────────────────────────
+        public Task SetTimeScaleAsync(double scale)        => SendAsync("SetTimeScale", scale);
+        public Task SetPausedAsync(bool isPaused)          => SendAsync("SetPaused", isPaused);
+        public Task StepSpeedUpAsync()                     => SendAsync("StepSpeedUp");
+        public Task StepSpeedDownAsync()                   => SendAsync("StepSpeedDown");
+        public Task DeclareEmergencyAsync()                => SendAsync("DeclareEmergency");  
+        public Task CycleWeatherAsync()                    => SendAsync("CycleWeather");      
+        public Task SetAirportLayoutAsync(string layoutId) => SendAsync("SetAirportLayout", layoutId);
+        public Task SetRvrAsync(int rvrMeters)             => SendAsync("SetRvr", rvrMeters); // NEW
 
-        public Task SetTimeScaleAsync(double scale)   => SendAsync("SetTimeScale", scale);
-        public Task SetPausedAsync(bool isPaused)     => SendAsync("SetPaused", isPaused);
-        public Task StepSpeedUpAsync()                => SendAsync("StepSpeedUp");
-        public Task StepSpeedDownAsync()              => SendAsync("StepSpeedDown");
-        public Task DeclareEmergencyAsync()           => SendAsync("DeclareEmergency");  // NEW
-        public Task CycleWeatherAsync()               => SendAsync("CycleWeather");      // NEW
-
-        // NEW: safe fire-and-forget — silently drops if not connected
         private async Task SendAsync(string method, params object[] args)
         {
             if (!IsConnected) return;

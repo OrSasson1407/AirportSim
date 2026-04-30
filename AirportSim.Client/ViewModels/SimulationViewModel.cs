@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Threading;
 using AirportSim.Shared.Models;
 using AirportSim.Client.Connection;
@@ -19,7 +21,6 @@ namespace AirportSim.Client.ViewModels
 
         public bool IsConnected { get; private set; }
 
-        // NEW: Track the currently selected aircraft
         public AircraftState? SelectedAircraft { get; private set; }
 
         // ── Alert queue ───────────────────────────────────────────────────────
@@ -62,10 +63,11 @@ namespace AirportSim.Client.ViewModels
         {
             Connection = new SimulationConnection();
 
-            Connection.OnSnapshotReceived += HandleNewSnapshot;
-            Connection.OnAlertReceived    += HandleAlert;
-            Connection.OnConnected        += () => SetConnected(true);
-            Connection.OnDisconnected     += () => SetConnected(false);
+            Connection.OnSnapshotReceived      += HandleNewSnapshot;
+            Connection.OnAlertReceived         += HandleAlert;
+            Connection.OnAudioTriggersReceived += HandleAudioTriggers;
+            Connection.OnConnected             += () => SetConnected(true);
+            Connection.OnDisconnected          += () => SetConnected(false);
         }
 
         public async void Start()
@@ -101,8 +103,6 @@ namespace AirportSim.Client.ViewModels
             return (x, y, heading);
         }
 
-        // ── NEW: Selection Handling ───────────────────────────────────────────
-
         public void SelectAircraft(string? flightId)
         {
             if (flightId == null)
@@ -121,7 +121,6 @@ namespace AirportSim.Client.ViewModels
             TargetSnapshot   = snapshot;
             LastSnapshotTime = DateTime.UtcNow;
 
-            // NEW: Keep the selected aircraft data fresh as it moves
             if (SelectedAircraft != null)
             {
                 SelectedAircraft = snapshot.ActiveAircraft.FirstOrDefault(a => a.FlightId == SelectedAircraft.FlightId);
@@ -145,7 +144,6 @@ namespace AirportSim.Client.ViewModels
             var activeIds = snapshot.ActiveAircraft.Select(a => a.FlightId).ToHashSet();
             _knownEmergencies.IntersectWith(activeIds);
 
-            // ── Dashboard: sample traffic history every 30 sim-seconds ────────
             if ((snapshot.SimulatedTime - _lastTrafficSample).TotalSeconds >= 30)
             {
                 _lastTrafficSample = snapshot.SimulatedTime;
@@ -154,7 +152,6 @@ namespace AirportSim.Client.ViewModels
                     _trafficHistory.RemoveAt(0);
             }
 
-            // ── Dashboard: attribute new go-arounds to current weather ────────
             int newGoArounds = snapshot.GoAroundsToday - _lastGoAroundCount;
             if (newGoArounds > 0)
             {
@@ -163,7 +160,6 @@ namespace AirportSim.Client.ViewModels
             }
             _lastGoAroundCount = snapshot.GoAroundsToday;
 
-            // ── Dashboard: runway utilisation sample ──────────────────────────
             _rwySamplesTotal++;
             if (snapshot.Runways.Count > 0 && snapshot.Runways[0].Status == RunwayStatus.Occupied)
                 _rwy0OccupiedSamples++;
@@ -172,6 +168,44 @@ namespace AirportSim.Client.ViewModels
         }
 
         private void HandleAlert(string message) => PushAlert(message);
+
+        // ── Audio Handler ─────────────────────────────────────────────────────
+
+        private void HandleAudioTriggers(List<string> audioFiles)
+        {
+            foreach (var file in audioFiles)
+            {
+                PlaySound(file);
+            }
+        }
+
+        private void PlaySound(string fileName)
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    string basePath = AppDomain.CurrentDomain.BaseDirectory;
+                    string fullPath = Path.Combine(basePath, "Assets", "Audio", fileName);
+
+                    if (File.Exists(fullPath))
+                    {
+                        using var player = new System.Media.SoundPlayer(fullPath);
+                        player.Play();
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[Audio] Missing file: {fullPath}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Audio] Failed to play {fileName}: {ex.Message}");
+                }
+            });
+        }
+
+        // ── Connection State ──────────────────────────────────────────────────
 
         private void SetConnected(bool connected)
         {
@@ -199,6 +233,11 @@ namespace AirportSim.Client.ViewModels
 
         public string WeatherText => TargetSnapshot != null
             ? WeatherIcon(TargetSnapshot.Weather) : "";
+
+        // NEW: Formatted RVR string
+        public string RvrText => TargetSnapshot != null
+            ? (TargetSnapshot.RvrMeters >= 10000 ? "10+ km" : $"{TargetSnapshot.RvrMeters}m") 
+            : "–";
 
         public bool HasActiveEmergency => TargetSnapshot?.ActiveAircraft
             .Any(a => a.Status == AircraftStatus.Emergency) ?? false;

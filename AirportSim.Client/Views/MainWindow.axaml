@@ -32,7 +32,8 @@
 
         <!-- Startup Splash Screen Overlay -->
         <Border x:Name="SplashOverlay" Background="{DynamicResource AtcBackground}" ZIndex="999">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="24">
+                
                 <TextBlock Text="✈" FontSize="72" Foreground="{DynamicResource AtcPrimary}" HorizontalAlignment="Center">
                     <TextBlock.Styles>
                         <!-- Simple pulsing animation for the splash icon -->
@@ -46,11 +47,48 @@
                         </Style>
                     </TextBlock.Styles>
                 </TextBlock>
-                <TextBlock Text="CONNECTING TO RADAR..." 
+
+                <TextBlock Text="ATC TERMINAL SETUP" 
+                           FontSize="22" FontWeight="Black"
                            Foreground="{DynamicResource AtcText}" 
-                           Margin="0,16,0,0" 
-                           LetterSpacing="2"
-                           FontWeight="Medium"/>
+                           HorizontalAlignment="Center"
+                           LetterSpacing="3"/>
+
+                <!-- Airport Layout Selector -->
+                <StackPanel Spacing="8" Margin="0,12,0,0">
+                    <TextBlock Text="SELECT AIRPORT LAYOUT"
+                               FontSize="10" FontWeight="Bold"
+                               Foreground="{DynamicResource AtcTextMuted}"
+                               LetterSpacing="1.5"
+                               HorizontalAlignment="Center"/>
+                    <ComboBox x:Name="AirportSelector"
+                              Width="280"
+                              SelectedIndex="0"
+                              Background="{DynamicResource AtcSurface1}"
+                              Foreground="{DynamicResource AtcText}"
+                              BorderBrush="{DynamicResource AtcBorderLine}"
+                              BorderThickness="1"
+                              CornerRadius="6"
+                              HorizontalAlignment="Center">
+                        <ComboBoxItem Content="TLV — Ben Gurion (Default)"/>
+                        <ComboBoxItem Content="LHR — London Heathrow"/>
+                        <ComboBoxItem Content="JFK — John F. Kennedy"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <Button x:Name="StartSimButton"
+                        Content="CONNECT TO RADAR"
+                        Click="StartSim_Click"
+                        Background="{DynamicResource AtcPrimary}"
+                        Foreground="{DynamicResource AtcBackground}"
+                        FontWeight="Bold"
+                        FontSize="14"
+                        Padding="0,14"
+                        Width="280"
+                        HorizontalContentAlignment="Center"
+                        CornerRadius="6"
+                        Margin="0,16,0,0"/>
+
             </StackPanel>
         </Border>
     </Grid>

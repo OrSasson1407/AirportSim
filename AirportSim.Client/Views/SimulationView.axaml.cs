@@ -30,7 +30,6 @@ namespace AirportSim.Client.Views
         private static readonly SolidColorBrush BrushTextMuted  = new(Color.FromRgb(90,  106, 122));
         private static readonly SolidColorBrush BrushText       = new(Color.FromRgb(232, 237, 245));
         private static readonly SolidColorBrush BrushGray       = new(Color.FromRgb(100, 116, 132));
-        // Accent brush referenced in toggle handlers
         private static readonly SolidColorBrush BrushAccent     = new(Color.FromRgb(255, 176, 32));
 
         public SimulationView()
@@ -48,6 +47,19 @@ namespace AirportSim.Client.Views
             vm.StateChanged      += RefreshAlertList;
             vm.EmergencyDetected += OnEmergencyDetected;
 
+            // NEW: Hook up the RVR Slider
+            var rvrSlider = this.FindControl<Slider>("RvrSlider");
+            if (rvrSlider != null)
+            {
+                rvrSlider.PropertyChanged += (s, e) =>
+                {
+                    if (e.Property.Name == "Value" && e.NewValue is double val)
+                    {
+                        _vm?.Connection.SetRvrAsync((int)val);
+                    }
+                };
+            }
+
             _uiTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _uiTimer.Tick += delegate { UpdateStatusBar(); };
             _uiTimer.Start();
@@ -55,20 +67,16 @@ namespace AirportSim.Client.Views
             vm.Start();
         }
 
-        // ── Lifecycle & Cleanup ───────────────────────────────────────────────
-        
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnDetachedFromVisualTree(e);
 
-            // 1. Stop the UI timer to prevent background ticking
             if (_uiTimer != null)
             {
                 _uiTimer.Stop();
                 _uiTimer = null;
             }
 
-            // 2. Unsubscribe from ViewModel events to prevent memory leaks
             if (_vm != null)
             {
                 _vm.StateChanged -= RefreshAlertList;
@@ -83,14 +91,12 @@ namespace AirportSim.Client.Views
             if (_vm == null) return;
             var snap = _vm.TargetSnapshot;
 
-            // Connection dot (now in status bar)
             var dot = this.FindControl<Border>("ConnectionIndicator");
             if (dot != null)
                 dot.Background = _vm.IsConnected ? BrushSuccess : BrushDanger;
 
             if (snap == null) return;
 
-            // Time display in sidebar widget
             var timeText = this.FindControl<TextBlock>("TimeText");
             if (timeText != null)
             {
@@ -98,16 +104,17 @@ namespace AirportSim.Client.Views
                 timeText.Text = $"{snap.SimulatedTime:HH:mm}  {snap.TimeScale}×{pause}";
             }
 
-            // Pause button label
             var pauseBtn = this.FindControl<Button>("PauseButton");
             if (pauseBtn != null)
                 pauseBtn.Content = snap.IsPaused ? "▶  RESUME SIMULATION" : "⏸  PAUSE SIMULATION";
 
-            // Weather label in sidebar
             var weatherText = this.FindControl<TextBlock>("WeatherText");
             if (weatherText != null) weatherText.Text = _vm.WeatherText;
 
-            // ── Runway chips ──────────────────────────────────────────────────
+            // Update RVR Readout
+            var rvrValueText = this.FindControl<TextBlock>("RvrValueText");
+            if (rvrValueText != null) rvrValueText.Text = _vm.RvrText;
+
             if (snap.Runways.Count >= 2)
             {
                 UpdateRunwayChip(
@@ -126,13 +133,11 @@ namespace AirportSim.Client.Views
                 UpdateRunwayChip(occ, "Rwy28LDot", "Rwy28LStatus", BrushSuccess, BrushDanger);
             }
 
-            // ── Metric chips ──────────────────────────────────────────────────
             SetText("ChipAircraft",   snap.ActiveAircraft.Count.ToString());
             SetText("ChipArrivals",   snap.TotalArrivalsToday.ToString());
             SetText("ChipDepartures", snap.TotalDeparturesToay.ToString());
             SetText("ChipGoArounds",  snap.GoAroundsToday.ToString());
 
-            // Legacy targets (kept for backwards compat, now hidden)
             SetText("RunwayText", "");
             SetText("StatsText",  "");
 
@@ -181,7 +186,6 @@ namespace AirportSim.Client.Views
                 SetText("InfoSpeed",    $"{ac.SpeedKts:N0} kts");
                 SetText("InfoGate",     string.IsNullOrEmpty(ac.AssignedGate) ? "—" : ac.AssignedGate);
 
-                // Color the phase pill by phase group
                 var pill = this.FindControl<Border>("InfoPhasePill");
                 var pillText = this.FindControl<TextBlock>("InfoPhase");
                 if (pill != null && pillText != null)
@@ -190,11 +194,11 @@ namespace AirportSim.Client.Views
                     {
                         var p when p.Contains("Approach") || p.Contains("Landing") || p.Contains("Arrival")
                             => (BrushSuccess, BrushSuccess, BrushSuccess),
-                        var p when p.Contains("Taxi") || p.Contains("Gate") || p.Contains("Boarding")
+                        var p when p.Contains("Taxi") || p.Contains("Gate") || p.Contains("Boarding") || p.Contains("Pushback")
                             => (BrushWarning, BrushWarning, BrushWarning),
                         var p when p.Contains("Takeoff") || p.Contains("Climb") || p.Contains("Depart")
                             => (BrushPrimary, BrushPrimary, BrushPrimary),
-                        var p when p.Contains("Emergency") || p.Contains("Mayday")
+                        var p when p.Contains("Emergency") || p.Contains("Mayday") || p.Contains("Divert")
                             => (BrushDanger, BrushDanger, BrushDanger),
                         _ => (BrushInfo, BrushInfo, BrushInfo)
                     };
@@ -241,11 +245,9 @@ namespace AirportSim.Client.Views
             var scroller = this.FindControl<ScrollViewer>("AlertScroller");
             scroller?.ScrollToHome();
 
-            // Update badge count
             var badge = this.FindControl<TextBlock>("AlertCountBadge");
             if (badge != null) badge.Text = _vm.AlertQueue.Count.ToString();
 
-            // Flash the button label if panel is closed
             var btn = this.FindControl<Button>("ToggleAlertsButton");
             if (btn != null && _vm.AlertQueue.Count > 0 && !_alertsVisible)
                 btn.Foreground = BrushDanger;
@@ -350,7 +352,6 @@ namespace AirportSim.Client.Views
         {
             if (_vm == null) return;
 
-            // ── Traffic graph — line chart with filled area ───────────────────────
             var graphCanvas = this.FindControl<Canvas>("TrafficGraphCanvas");
             if (graphCanvas != null)
             {
@@ -361,7 +362,6 @@ namespace AirportSim.Client.Views
                 double ch   = graphCanvas.Bounds.Height > 0 ? graphCanvas.Bounds.Height : 65;
                 int maxVal  = Math.Max(1, n > 0 ? history.Max(h => h.Count) : 1);
 
-                // Subtle horizontal grid lines at 25 / 50 / 75 %
                 foreach (double pctLine in new[] { 0.25, 0.5, 0.75 })
                 {
                     double gy = ch - pctLine * (ch - 8) - 4;
@@ -377,7 +377,6 @@ namespace AirportSim.Client.Views
 
                 if (n >= 2)
                 {
-                    // Build point list
                     var pts = new List<Avalonia.Point>();
                     for (int i = 0; i < n; i++)
                     {
@@ -387,7 +386,6 @@ namespace AirportSim.Client.Views
                         pts.Add(new Avalonia.Point(px, py));
                     }
 
-                    // Filled area polygon (line pts + bottom corners)
                     var polyPts = new Avalonia.Collections.AvaloniaList<Avalonia.Point>(pts);
                     polyPts.Add(new Avalonia.Point(pts[^1].X, ch));
                     polyPts.Add(new Avalonia.Point(pts[0].X,  ch));
@@ -400,7 +398,6 @@ namespace AirportSim.Client.Views
                     };
                     graphCanvas.Children.Add(area);
 
-                    // Line itself
                     var polyLine = new Polyline
                     {
                         Points          = new Avalonia.Collections.AvaloniaList<Avalonia.Point>(pts),
@@ -411,7 +408,6 @@ namespace AirportSim.Client.Views
                     };
                     graphCanvas.Children.Add(polyLine);
 
-                    // Dot at latest point
                     var lastPt = pts[^1];
                     double load = n > 0 ? (double)history[^1].Count / maxVal : 0;
                     Color dotColor = load > 0.75 ? Color.FromRgb(239, 68, 68)
@@ -428,7 +424,6 @@ namespace AirportSim.Client.Views
                     graphCanvas.Children.Add(dot);
                 }
 
-                // Peak label top-right
                 if (n > 0)
                 {
                     var lbl = new TextBlock
@@ -441,7 +436,6 @@ namespace AirportSim.Client.Views
                     Canvas.SetTop(lbl,   3);
                     graphCanvas.Children.Add(lbl);
 
-                    // Current count bottom-right
                     var cur = new TextBlock
                     {
                         Text       = $"now  {history[^1].Count} ac",
@@ -455,7 +449,6 @@ namespace AirportSim.Client.Views
                 }
             }
 
-            // ── Go-arounds by weather ─────────────────────────────────────────────
             var goList = this.FindControl<ItemsControl>("GoAroundList");
             if (goList != null)
             {
@@ -465,7 +458,6 @@ namespace AirportSim.Client.Views
                 goList.ItemsSource = rows;
             }
 
-            // ── Runway utilisation bars + percentage labels ────────────────────────
             UpdateUtilBar("Rwy0Bar", "Rwy0Pct", _vm.Runway0Utilisation);
             UpdateUtilBar("Rwy1Bar", "Rwy1Pct", _vm.Runway1Utilisation);
         }
