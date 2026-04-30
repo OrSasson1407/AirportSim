@@ -1,0 +1,252 @@
+{
+  "_comment": "AirportSim Airport Layout Profile — Ben Gurion International (TLV / LLBG). All coordinates are in simulation world-space units (2000 × 600). X: 0=left edge, 2000=right edge. Y: 0=top (sky), 600=bottom (far ground). Runway asphalt band sits at Y=460–500. Terminal building occupies X=1650–1950, Y=350–480.",
+  "_version": "1.0.0",
+
+  "Airport": {
+    "ICAO": "LLBG",
+    "IATA": "TLV",
+    "Name": "Ben Gurion International Airport",
+    "City": "Tel Aviv",
+    "Country": "Israel",
+    "Elevation_ft": 135,
+    "MagneticVariation_deg": 4.2
+  },
+
+  "WorldSpace": {
+    "Width": 2000,
+    "Height": 600,
+    "UnitsPerNauticalMile": 120,
+    "_note": "1 sim unit ≈ 1 metre at this scale. Runway 28L length 11998 ft ≈ 3657 m → 1200 world units."
+  },
+
+  "Runways": {
+    "Runway28L": {
+      "Designation": "28L / 10R",
+      "Use": "Arrivals",
+      "LengthFt": 11998,
+      "WidthFt": 147,
+      "HeadingDeg": 284,
+      "Surface": "Asphalt",
+      "WorldCoords": {
+        "ThresholdStart": { "X": 400,  "Y": 460 },
+        "ThresholdEnd":   { "X": 1600, "Y": 460 },
+        "CenterlineY":    480,
+        "Width":          40,
+        "TDZ_X":          520,
+        "_note": "Touch-down zone begins 120 units from threshold (≈1000 ft)"
+      },
+      "Markings": {
+        "CenterlineDash_px":    20,
+        "CenterlineGap_px":     20,
+        "ThresholdBars":        { "Count": 8, "Width": 3, "Length": 12, "SpacingX": 18 },
+        "AimingPointStart_X":   600,
+        "TDZStripes":           3
+      },
+      "Lighting": {
+        "PAPI_X": 560,
+        "PAPI_Y": 455,
+        "EdgeLights_SpacingX":  60,
+        "EdgeLights_Y":         [460, 500],
+        "TDZ_Lights_X_from":    520,
+        "TDZ_Lights_X_to":      620
+      }
+    },
+    "Runway28R": {
+      "Designation": "28R / 10L",
+      "Use": "Departures",
+      "LengthFt": 13123,
+      "WidthFt": 147,
+      "HeadingDeg": 284,
+      "Surface": "Asphalt",
+      "WorldCoords": {
+        "ThresholdStart": { "X": 400,  "Y": 500 },
+        "ThresholdEnd":   { "X": 1600, "Y": 500 },
+        "CenterlineY":    520,
+        "Width":          40,
+        "HoldShortLine_X": 390
+      },
+      "Markings": {
+        "CenterlineDash_px":    20,
+        "CenterlineGap_px":     20,
+        "ThresholdBars":        { "Count": 8, "Width": 3, "Length": 12, "SpacingX": 18 },
+        "HoldShortBars":        { "X": 390, "Y": 500, "Width": 14, "Count": 4 }
+      },
+      "Lighting": {
+        "REIL_X": [400, 1600],
+        "REIL_Y": 500,
+        "EdgeLights_SpacingX":  60,
+        "EdgeLights_Y":         [500, 540],
+        "CenterlineLights_Y":   520
+      }
+    }
+  },
+
+  "Taxiways": {
+    "Alpha": {
+      "ID": "TWY_A",
+      "Name": "Taxiway Alpha",
+      "Use": "Arrivals exit — runway 28L to apron",
+      "Width": 30,
+      "Path": [
+        { "X": 1550, "Y": 480 },
+        { "X": 1550, "Y": 430 },
+        { "X": 1600, "Y": 420 }
+      ],
+      "Lighting": { "EdgeColor": "#3399FF", "CenterColor": "#00CC44" }
+    },
+    "Bravo": {
+      "ID": "TWY_B",
+      "Name": "Taxiway Bravo",
+      "Use": "Mid-field connector — apron to departure hold",
+      "Width": 28,
+      "Path": [
+        { "X": 960,  "Y": 430 },
+        { "X": 960,  "Y": 400 },
+        { "X": 960,  "Y": 390 }
+      ],
+      "Lighting": { "EdgeColor": "#3399FF", "CenterColor": "#00CC44" }
+    },
+    "Charlie": {
+      "ID": "TWY_C",
+      "Name": "Taxiway Charlie",
+      "Use": "Departure queue — gates to 28R hold short",
+      "Width": 28,
+      "Path": [
+        { "X": 340,  "Y": 400 },
+        { "X": 340,  "Y": 440 },
+        { "X": 390,  "Y": 500 }
+      ],
+      "Lighting": { "EdgeColor": "#3399FF", "CenterColor": "#FFCC00" }
+    },
+    "Delta": {
+      "ID": "TWY_D",
+      "Name": "Taxiway Delta",
+      "Use": "Terminal D push-back to Charlie",
+      "Width": 24,
+      "Path": [
+        { "X": 1680, "Y": 400 },
+        { "X": 1680, "Y": 440 },
+        { "X": 1550, "Y": 460 }
+      ],
+      "Lighting": { "EdgeColor": "#3399FF", "CenterColor": "#00CC44" }
+    }
+  },
+
+  "Terminals": {
+    "TerminalA": {
+      "ID": "TERM_A",
+      "Name": "Terminal A — Domestic & Charter",
+      "WorldRect": { "X": 60, "Y": 340, "Width": 340, "Height": 80 },
+      "Color": "#8C8780",
+      "RoofColor": "#6E6B65",
+      "Windows": { "Rows": 2, "Cols": 6, "OffsetX": 20, "OffsetY": 14, "W": 22, "H": 18, "SpacingX": 52, "SpacingY": 30 }
+    },
+    "TerminalB": {
+      "ID": "TERM_B",
+      "Name": "Terminal B — International",
+      "WorldRect": { "X": 500, "Y": 330, "Width": 400, "Height": 90 },
+      "Color": "#8C8780",
+      "RoofColor": "#6E6B65",
+      "Windows": { "Rows": 3, "Cols": 8, "OffsetX": 20, "OffsetY": 12, "W": 22, "H": 18, "SpacingX": 44, "SpacingY": 28 }
+    },
+    "TerminalC": {
+      "ID": "TERM_C",
+      "Name": "Terminal C — Long Haul",
+      "WorldRect": { "X": 980, "Y": 330, "Width": 400, "Height": 90 },
+      "Color": "#8C8780",
+      "RoofColor": "#6E6B65",
+      "Windows": { "Rows": 3, "Cols": 8, "OffsetX": 20, "OffsetY": 12, "W": 22, "H": 18, "SpacingX": 44, "SpacingY": 28 }
+    },
+    "TerminalD": {
+      "ID": "TERM_D",
+      "Name": "Terminal D — El Al Hub",
+      "WorldRect": { "X": 1490, "Y": 330, "Width": 440, "Height": 100 },
+      "Color": "#8C8780",
+      "RoofColor": "#6E6B65",
+      "Windows": { "Rows": 3, "Cols": 9, "OffsetX": 18, "OffsetY": 12, "W": 22, "H": 18, "SpacingX": 44, "SpacingY": 28 }
+    }
+  },
+
+  "Gates": {
+    "_note": "GateX/GateY = world-space nose-of-aircraft stand position. JetbridgeAnchor = building-side attachment point.",
+    "A1": { "Terminal": "A", "X": 160,  "Y": 400, "JetbridgeAnchor": { "X": 160,  "Y": 340 }, "Size": "Small",  "Label": "A1" },
+    "A2": { "Terminal": "A", "X": 220,  "Y": 400, "JetbridgeAnchor": { "X": 220,  "Y": 340 }, "Size": "Small",  "Label": "A2" },
+    "A3": { "Terminal": "A", "X": 280,  "Y": 400, "JetbridgeAnchor": { "X": 280,  "Y": 340 }, "Size": "Medium", "Label": "A3" },
+    "A4": { "Terminal": "A", "X": 340,  "Y": 400, "JetbridgeAnchor": { "X": 340,  "Y": 340 }, "Size": "Medium", "Label": "A4" },
+    "A5": { "Terminal": "A", "X": 400,  "Y": 400, "JetbridgeAnchor": { "X": 400,  "Y": 340 }, "Size": "Small",  "Label": "A5" },
+    "A6": { "Terminal": "A", "X": 460,  "Y": 400, "JetbridgeAnchor": { "X": 460,  "Y": 340 }, "Size": "Small",  "Label": "A6" },
+
+    "B1": { "Terminal": "B", "X": 560,  "Y": 400, "JetbridgeAnchor": { "X": 560,  "Y": 330 }, "Size": "Large",  "Label": "B1" },
+    "B2": { "Terminal": "B", "X": 620,  "Y": 400, "JetbridgeAnchor": { "X": 620,  "Y": 330 }, "Size": "Large",  "Label": "B2" },
+    "B3": { "Terminal": "B", "X": 680,  "Y": 400, "JetbridgeAnchor": { "X": 680,  "Y": 330 }, "Size": "Medium", "Label": "B3" },
+    "B4": { "Terminal": "B", "X": 740,  "Y": 400, "JetbridgeAnchor": { "X": 740,  "Y": 330 }, "Size": "Medium", "Label": "B4" },
+    "B5": { "Terminal": "B", "X": 800,  "Y": 400, "JetbridgeAnchor": { "X": 800,  "Y": 330 }, "Size": "Medium", "Label": "B5" },
+    "B6": { "Terminal": "B", "X": 860,  "Y": 400, "JetbridgeAnchor": { "X": 860,  "Y": 330 }, "Size": "Large",  "Label": "B6" },
+
+    "C1": { "Terminal": "C", "X": 980,  "Y": 400, "JetbridgeAnchor": { "X": 980,  "Y": 330 }, "Size": "Large",  "Label": "C1" },
+    "C2": { "Terminal": "C", "X": 1040, "Y": 400, "JetbridgeAnchor": { "X": 1040, "Y": 330 }, "Size": "Large",  "Label": "C2" },
+    "C3": { "Terminal": "C", "X": 1100, "Y": 400, "JetbridgeAnchor": { "X": 1100, "Y": 330 }, "Size": "Medium", "Label": "C3" },
+    "C4": { "Terminal": "C", "X": 1160, "Y": 400, "JetbridgeAnchor": { "X": 1160, "Y": 330 }, "Size": "Medium", "Label": "C4" },
+    "C12":{ "Terminal": "C", "X": 1220, "Y": 400, "JetbridgeAnchor": { "X": 1220, "Y": 330 }, "Size": "Large",  "Label": "C12" },
+    "C14":{ "Terminal": "C", "X": 1280, "Y": 400, "JetbridgeAnchor": { "X": 1280, "Y": 330 }, "Size": "Large",  "Label": "C14" },
+
+    "D1": { "Terminal": "D", "X": 1510, "Y": 400, "JetbridgeAnchor": { "X": 1510, "Y": 330 }, "Size": "Large",  "Label": "D1" },
+    "D2": { "Terminal": "D", "X": 1570, "Y": 400, "JetbridgeAnchor": { "X": 1570, "Y": 330 }, "Size": "Large",  "Label": "D2" },
+    "D7": { "Terminal": "D", "X": 1630, "Y": 400, "JetbridgeAnchor": { "X": 1630, "Y": 330 }, "Size": "Large",  "Label": "D7" },
+    "D8": { "Terminal": "D", "X": 1690, "Y": 400, "JetbridgeAnchor": { "X": 1690, "Y": 330 }, "Size": "Large",  "Label": "D8" },
+    "D9": { "Terminal": "D", "X": 1750, "Y": 400, "JetbridgeAnchor": { "X": 1750, "Y": 330 }, "Size": "Large",  "Label": "D9" },
+    "D10":{ "Terminal": "D", "X": 1810, "Y": 400, "JetbridgeAnchor": { "X": 1810, "Y": 330 }, "Size": "Large",  "Label": "D10" }
+  },
+
+  "AircraftPaths": {
+    "_note": "Key waypoints for each flight phase used by Aircraft.cs position logic.",
+    "ArrivalPath": [
+      { "Phase": "Approaching", "Progress": 0.0, "X": -200, "Y": 80,  "_label": "Spawn off-screen left high" },
+      { "Phase": "Approaching", "Progress": 1.0, "X": 300,  "Y": 200, "_label": "Begin final approach gate" },
+      { "Phase": "OnFinal",     "Progress": 0.0, "X": 300,  "Y": 200 },
+      { "Phase": "OnFinal",     "Progress": 1.0, "X": 500,  "Y": 460, "_label": "Touchdown zone RWY 28L" },
+      { "Phase": "Landing",     "Progress": 0.0, "X": 500,  "Y": 470 },
+      { "Phase": "Landing",     "Progress": 1.0, "X": 1500, "Y": 470, "_label": "Full rollout end" },
+      { "Phase": "Rollout",     "Progress": 0.0, "X": 1500, "Y": 470 },
+      { "Phase": "Rollout",     "Progress": 1.0, "X": 1550, "Y": 430, "_label": "Exit via Taxiway Alpha" },
+      { "Phase": "Taxiing",     "Progress": 0.0, "X": 1550, "Y": 430 },
+      { "Phase": "Taxiing",     "Progress": 1.0, "X": "GateX", "Y": 400, "_label": "Gate position (dynamic)" }
+    ],
+    "DeparturePath": [
+      { "Phase": "Parked",   "Progress": 0.0, "X": "GateX", "Y": 400 },
+      { "Phase": "Taxiing",  "Progress": 0.0, "X": "GateX", "Y": 400 },
+      { "Phase": "Taxiing",  "Progress": 1.0, "X": 390,    "Y": 500, "_label": "Hold short RWY 28R" },
+      { "Phase": "Holding",  "Progress": 0.0, "X": 390,    "Y": 505 },
+      { "Phase": "Takeoff",  "Progress": 0.0, "X": 420,    "Y": 518, "_label": "Lined up RWY 28R" },
+      { "Phase": "Takeoff",  "Progress": 1.0, "X": 1580,   "Y": 518, "_label": "Rotation" },
+      { "Phase": "Climbing", "Progress": 0.0, "X": 1580,   "Y": 510 },
+      { "Phase": "Climbing", "Progress": 1.0, "X": 2200,   "Y": 60,  "_label": "Departure off-screen right" }
+    ],
+    "GoAroundPath": [
+      { "Phase": "GoAround", "Progress": 0.0, "X": 550,  "Y": 460, "_label": "Missed approach point" },
+      { "Phase": "GoAround", "Progress": 0.5, "X": 900,  "Y": 200 },
+      { "Phase": "GoAround", "Progress": 1.0, "X": -100, "Y": 100, "_label": "Rejoin approach" }
+    ]
+  },
+
+  "GroundVehicleRoutes": {
+    "FuelTruckLoop": [
+      { "X": 1680, "Y": 420 }, { "X": 960, "Y": 420 }, { "X": 340, "Y": 420 }, { "X": 340, "Y": 430 }, { "X": 960, "Y": 430 }, { "X": 1680, "Y": 430 }
+    ],
+    "BaggageCartLoop": [
+      { "X": 1650, "Y": 405 }, { "X": 980,  "Y": 405 }, { "X": 560, "Y": 405 }, { "X": 160, "Y": 405 }
+    ],
+    "EmergencyVehicleRoute": [
+      { "X": 200,  "Y": 550 }, { "X": 1800, "Y": 550 }, { "X": 1800, "Y": 480 }, { "X": 500, "Y": 480 }
+    ]
+  },
+
+  "EnvironmentMarkers": {
+    "ControlTower": { "X": 1940, "Y": 280, "Width": 30, "Height": 100 },
+    "ATIS_Beacon":  { "X": 1960, "Y": 250 },
+    "WindSock":     { "X": 1000, "Y": 455 },
+    "GrassFieldLeft":   { "X": 0,    "Y": 440, "Width": 400,  "Height": 60 },
+    "GrassFieldRight":  { "X": 1600, "Y": 440, "Width": 400,  "Height": 60 },
+    "GrassFieldFar":    { "X": 0,    "Y": 440, "Width": 2000, "Height": 40 }
+  }
+}

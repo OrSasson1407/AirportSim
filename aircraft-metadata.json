@@ -1,0 +1,140 @@
+{
+  "_comment": "AirportSim Aircraft Metadata Database — used by the Aircraft model and renderers.",
+  "_version": "1.0.0",
+
+  "AircraftTypes": {
+    "Small": {
+      "Label": "Small / Regional",
+      "WakeCategory": "Light",
+      "TypicalExamples": ["Cessna 172", "ATR 42", "Embraer ERJ-145", "Bombardier CRJ-200"],
+      "PerformanceEnvelope": {
+        "CruiseSpeedKts":       250,
+        "ApproachSpeedKts":     100,
+        "TakeoffSpeedKts":      115,
+        "ClimbRateFtPerMin":    1200,
+        "MaxAltitudeFt":        25000,
+        "TakeoffRunFt":         3500,
+        "LandingRunFt":         3000,
+        "MaxFuelHours":         4.5
+      },
+      "Weight": {
+        "MaxTakeoffWeightLbs":  12500,
+        "MaxLandingWeightLbs":  11900,
+        "EmptyWeightLbs":       6800
+      },
+      "Capacity": {
+        "MaxPassengers":        50,
+        "MaxCargoLbs":          3000,
+        "CrewCount":            2
+      },
+      "Rendering": {
+        "WingspanPx":           20,
+        "FuselageLengthPx":     28,
+        "IconColorHex":         "#7EC8E3",
+        "RadarBlipRadiusPx":    4
+      }
+    },
+
+    "Medium": {
+      "Label": "Medium / Narrowbody",
+      "WakeCategory": "Medium",
+      "TypicalExamples": ["Boeing 737-800", "Airbus A320", "Boeing 757-200", "Airbus A321neo"],
+      "PerformanceEnvelope": {
+        "CruiseSpeedKts":       450,
+        "ApproachSpeedKts":     138,
+        "TakeoffSpeedKts":      155,
+        "ClimbRateFtPerMin":    2500,
+        "MaxAltitudeFt":        41000,
+        "TakeoffRunFt":         7000,
+        "LandingRunFt":         5500,
+        "MaxFuelHours":         6.5
+      },
+      "Weight": {
+        "MaxTakeoffWeightLbs":  174200,
+        "MaxLandingWeightLbs":  146400,
+        "EmptyWeightLbs":       91300
+      },
+      "Capacity": {
+        "MaxPassengers":        189,
+        "MaxCargoLbs":          42000,
+        "CrewCount":            6
+      },
+      "Rendering": {
+        "WingspanPx":           34,
+        "FuselageLengthPx":     46,
+        "IconColorHex":         "#F5A623",
+        "RadarBlipRadiusPx":    6
+      }
+    },
+
+    "Large": {
+      "Label": "Large / Widebody",
+      "WakeCategory": "Heavy",
+      "TypicalExamples": ["Boeing 777-300ER", "Airbus A380", "Boeing 747-8", "Airbus A350-900"],
+      "PerformanceEnvelope": {
+        "CruiseSpeedKts":       490,
+        "ApproachSpeedKts":     150,
+        "TakeoffSpeedKts":      170,
+        "ClimbRateFtPerMin":    1800,
+        "MaxAltitudeFt":        43100,
+        "TakeoffRunFt":         11000,
+        "LandingRunFt":         7500,
+        "MaxFuelHours":         17.0
+      },
+      "Weight": {
+        "MaxTakeoffWeightLbs":  775000,
+        "MaxLandingWeightLbs":  554000,
+        "EmptyWeightLbs":       357000
+      },
+      "Capacity": {
+        "MaxPassengers":        550,
+        "MaxCargoLbs":          167000,
+        "CrewCount":            16
+      },
+      "Rendering": {
+        "WingspanPx":           52,
+        "FuselageLengthPx":     68,
+        "IconColorHex":         "#E94F37",
+        "RadarBlipRadiusPx":    8
+      }
+    }
+  },
+
+  "PhaseDescriptions": {
+    "Parked":     { "Label": "At Gate",       "ColorHex": "#888888", "AltitudeContext": "Ground — engines off" },
+    "Taxiing":    { "Label": "Taxiing",        "ColorHex": "#F5A623", "AltitudeContext": "Ground — slow roll" },
+    "Holding":    { "Label": "Holding Short",  "ColorHex": "#E94F37", "AltitudeContext": "Ground — awaiting clearance" },
+    "Takeoff":    { "Label": "Taking Off",     "ColorHex": "#FF6B35", "AltitudeContext": "Runway — full thrust" },
+    "Climbing":   { "Label": "Climbing",       "ColorHex": "#7EC8E3", "AltitudeContext": "Departure — climbing to cruise" },
+    "Departed":   { "Label": "Departed",       "ColorHex": "#444444", "AltitudeContext": "En route — left sector" },
+    "Approaching":{ "Label": "Approaching",   "ColorHex": "#A8D5A2", "AltitudeContext": "Arrival — descending" },
+    "OnFinal":    { "Label": "On Final",       "ColorHex": "#F5A623", "AltitudeContext": "< 3 NM — landing imminent" },
+    "Landing":    { "Label": "Landing",        "ColorHex": "#E94F37", "AltitudeContext": "Touchdown — decelerating" },
+    "Rollout":    { "Label": "Rollout",        "ColorHex": "#F5A623", "AltitudeContext": "Vacating runway" },
+    "GoAround":   { "Label": "Go-Around",      "ColorHex": "#C0392B", "AltitudeContext": "Missed approach — climbing away" }
+  },
+
+  "StatusDescriptions": {
+    "Normal":    { "Label": "Normal",     "ColorHex": "#2ECC71", "Priority": 0 },
+    "GoAround":  { "Label": "Go-Around",  "ColorHex": "#F39C12", "Priority": 1 },
+    "Emergency": { "Label": "EMERGENCY",  "ColorHex": "#E74C3C", "Priority": 2 }
+  },
+
+  "FuelEmergencyThresholds": {
+    "CautionPercent":  25.0,
+    "WarningPercent":  15.0,
+    "EmergencyPercent": 8.0,
+    "_comment": "When CurrentFuelPercent drops below EmergencyPercent the aircraft declares a fuel emergency (AircraftStatus.Emergency)."
+  },
+
+  "CommonEmergencyReasons": [
+    "Fuel emergency",
+    "Engine failure",
+    "Hydraulic failure",
+    "Medical emergency on board",
+    "Pressurisation loss",
+    "Bird strike",
+    "Smoke in cabin",
+    "Gear malfunction"
+  ]
+}

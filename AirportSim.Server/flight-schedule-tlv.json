@@ -1,0 +1,92 @@
+{
+  "_comment": "AirportSim — Realistic flight schedule for Ben Gurion International (TLV / LLBG). Times are local Israel time (UTC+3). Suitable for injection into FlightScheduler as seed data.",
+  "_version": "1.0.0",
+  "Airport": "TLV",
+  "Date": "YYYY-MM-DD",
+
+  "Schedule": [
+
+    { "FlightId": "LY 001", "Airline": "El Al",           "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "00:05", "Origin": "TLV", "Destination": "JFK", "Gate": "D7",  "DelayMinutes": 0  },
+    { "FlightId": "LY 316", "Airline": "El Al",           "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "00:30", "Origin": "LHR", "Destination": "TLV", "Gate": "A3",  "DelayMinutes": 15 },
+    { "FlightId": "LH 685", "Airline": "Lufthansa",       "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "01:10", "Origin": "FRA", "Destination": "TLV", "Gate": "B2",  "DelayMinutes": 0  },
+    { "FlightId": "EK 531", "Airline": "Emirates",        "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "02:00", "Origin": "DXB", "Destination": "TLV", "Gate": "D8",  "DelayMinutes": 0  },
+    { "FlightId": "QR 497", "Airline": "Qatar Airways",   "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "02:45", "Origin": "DOH", "Destination": "TLV", "Gate": "D9",  "DelayMinutes": 10 },
+    { "FlightId": "TK 782", "Airline": "Turkish Airlines","Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "03:20", "Origin": "IST", "Destination": "TLV", "Gate": "B4",  "DelayMinutes": 0  },
+    { "FlightId": "IB 3132","Airline": "Iberia",          "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "04:05", "Origin": "MAD", "Destination": "TLV", "Gate": "A5",  "DelayMinutes": 20 },
+    { "FlightId": "FR 8841","Airline": "Ryanair",         "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "04:50", "Origin": "FCO", "Destination": "TLV", "Gate": "C1",  "DelayMinutes": 0  },
+
+    { "FlightId": "LY 082", "Airline": "El Al",           "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "05:00", "Origin": "TLV", "Destination": "LHR", "Gate": "D10", "DelayMinutes": 0  },
+    { "FlightId": "AF 1491","Airline": "Air France",      "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "05:30", "Origin": "CDG", "Destination": "TLV", "Gate": "B3",  "DelayMinutes": 5  },
+    { "FlightId": "KL 4823","Airline": "KLM",             "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "05:55", "Origin": "AMS", "Destination": "TLV", "Gate": "B5",  "DelayMinutes": 0  },
+    { "FlightId": "LY 318", "Airline": "El Al",           "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "06:20", "Origin": "TLV", "Destination": "CDG", "Gate": "D7",  "DelayMinutes": 0  },
+    { "FlightId": "IZ 611", "Airline": "Arkia",           "Type": "Small",  "FlightType": "Departure", "ScheduledLocal": "06:40", "Origin": "TLV", "Destination": "ATH", "Gate": "A1",  "DelayMinutes": 0  },
+    { "FlightId": "U2 6193","Airline": "EasyJet",         "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "07:00", "Origin": "ZRH", "Destination": "TLV", "Gate": "C2",  "DelayMinutes": 0  },
+    { "FlightId": "W6 2341","Airline": "Wizz Air",        "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "07:15", "Origin": "VIE", "Destination": "TLV", "Gate": "C3",  "DelayMinutes": 30 },
+    { "FlightId": "BA 163", "Airline": "British Airways", "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "07:35", "Origin": "TLV", "Destination": "LHR", "Gate": "D8",  "DelayMinutes": 0  },
+    { "FlightId": "OS 742", "Airline": "Austrian Airlines","Type":"Medium", "FlightType": "Arrival",   "ScheduledLocal": "07:55", "Origin": "VIE", "Destination": "TLV", "Gate": "B6",  "DelayMinutes": 0  },
+    { "FlightId": "LH 687", "Airline": "Lufthansa",       "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "08:10", "Origin": "TLV", "Destination": "FRA", "Gate": "D9",  "DelayMinutes": 10 },
+
+    { "FlightId": "LY 320", "Airline": "El Al",           "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "08:30", "Origin": "JFK", "Destination": "TLV", "Gate": "D1",  "DelayMinutes": 0  },
+    { "FlightId": "TK 784", "Airline": "Turkish Airlines","Type": "Medium", "FlightType": "Departure", "ScheduledLocal": "08:50", "Origin": "TLV", "Destination": "IST", "Gate": "B1",  "DelayMinutes": 0  },
+    { "FlightId": "QR 499", "Airline": "Qatar Airways",   "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "09:05", "Origin": "TLV", "Destination": "DOH", "Gate": "D7",  "DelayMinutes": 5  },
+    { "FlightId": "FR 8842","Airline": "Ryanair",         "Type": "Medium", "FlightType": "Departure", "ScheduledLocal": "09:25", "Origin": "TLV", "Destination": "FCO", "Gate": "C4",  "DelayMinutes": 0  },
+    { "FlightId": "IS 5321","Airline": "Israir",          "Type": "Small",  "FlightType": "Arrival",   "ScheduledLocal": "09:40", "Origin": "ATH", "Destination": "TLV", "Gate": "A2",  "DelayMinutes": 0  },
+    { "FlightId": "AZ 741", "Airline": "ITA Airways",     "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "09:58", "Origin": "FCO", "Destination": "TLV", "Gate": "B2",  "DelayMinutes": 0  },
+    { "FlightId": "AF 1492","Airline": "Air France",      "Type": "Medium", "FlightType": "Departure", "ScheduledLocal": "10:15", "Origin": "TLV", "Destination": "CDG", "Gate": "A4",  "DelayMinutes": 0  },
+    { "FlightId": "EK 532", "Airline": "Emirates",        "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "10:40", "Origin": "TLV", "Destination": "DXB", "Gate": "D10", "DelayMinutes": 15 },
+    { "FlightId": "LY 502", "Airline": "El Al",           "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "10:55", "Origin": "RUH", "Destination": "TLV", "Gate": "D2",  "DelayMinutes": 0  },
+    { "FlightId": "W6 2342","Airline": "Wizz Air",        "Type": "Medium", "FlightType": "Departure", "ScheduledLocal": "11:10", "Origin": "TLV", "Destination": "CPH", "Gate": "C1",  "DelayMinutes": 0  },
+
+    { "FlightId": "KL 4824","Airline": "KLM",             "Type": "Medium", "FlightType": "Departure", "ScheduledLocal": "11:30", "Origin": "TLV", "Destination": "AMS", "Gate": "B3",  "DelayMinutes": 0  },
+    { "FlightId": "UA 091", "Airline": "United Airlines", "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "11:45", "Origin": "JFK", "Destination": "TLV", "Gate": "D8",  "DelayMinutes": 25 },
+    { "FlightId": "IZ 612", "Airline": "Arkia",           "Type": "Small",  "FlightType": "Arrival",   "ScheduledLocal": "12:00", "Origin": "ATH", "Destination": "TLV", "Gate": "A1",  "DelayMinutes": 0  },
+    { "FlightId": "BA 164", "Airline": "British Airways", "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "12:20", "Origin": "LHR", "Destination": "TLV", "Gate": "D1",  "DelayMinutes": 0  },
+    { "FlightId": "LH 688", "Airline": "Lufthansa",       "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "12:45", "Origin": "FRA", "Destination": "TLV", "Gate": "D2",  "DelayMinutes": 10 },
+    { "FlightId": "LY 322", "Airline": "El Al",           "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "13:00", "Origin": "TLV", "Destination": "JFK", "Gate": "D9",  "DelayMinutes": 0  },
+    { "FlightId": "FR 8843","Airline": "Ryanair",         "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "13:20", "Origin": "MAD", "Destination": "TLV", "Gate": "C2",  "DelayMinutes": 0  },
+    { "FlightId": "TK 786", "Airline": "Turkish Airlines","Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "13:45", "Origin": "IST", "Destination": "TLV", "Gate": "B4",  "DelayMinutes": 5  },
+    { "FlightId": "OS 743", "Airline": "Austrian Airlines","Type":"Medium", "FlightType": "Departure", "ScheduledLocal": "14:05", "Origin": "TLV", "Destination": "VIE", "Gate": "B5",  "DelayMinutes": 0  },
+
+    { "FlightId": "IS 5322","Airline": "Israir",          "Type": "Small",  "FlightType": "Departure", "ScheduledLocal": "14:20", "Origin": "TLV", "Destination": "ATH", "Gate": "A3",  "DelayMinutes": 0  },
+    { "FlightId": "AZ 742", "Airline": "ITA Airways",     "Type": "Medium", "FlightType": "Departure", "ScheduledLocal": "14:40", "Origin": "TLV", "Destination": "FCO", "Gate": "B2",  "DelayMinutes": 20 },
+    { "FlightId": "U2 6194","Airline": "EasyJet",         "Type": "Medium", "FlightType": "Departure", "ScheduledLocal": "15:00", "Origin": "TLV", "Destination": "ZRH", "Gate": "C3",  "DelayMinutes": 0  },
+    { "FlightId": "QR 501", "Airline": "Qatar Airways",   "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "15:20", "Origin": "DOH", "Destination": "TLV", "Gate": "D8",  "DelayMinutes": 0  },
+    { "FlightId": "LY 504", "Airline": "El Al",           "Type": "Medium", "FlightType": "Departure", "ScheduledLocal": "15:40", "Origin": "TLV", "Destination": "RUH", "Gate": "D10", "DelayMinutes": 0  },
+    { "FlightId": "DL 468", "Airline": "Delta Air Lines", "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "15:55", "Origin": "JFK", "Destination": "TLV", "Gate": "D7",  "DelayMinutes": 35 },
+    { "FlightId": "KL 4825","Airline": "KLM",             "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "16:10", "Origin": "AMS", "Destination": "TLV", "Gate": "B6",  "DelayMinutes": 0  },
+    { "FlightId": "IB 3133","Airline": "Iberia",          "Type": "Medium", "FlightType": "Departure", "ScheduledLocal": "16:30", "Origin": "TLV", "Destination": "MAD", "Gate": "A5",  "DelayMinutes": 0  },
+    { "FlightId": "LH 689", "Airline": "Lufthansa",       "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "16:50", "Origin": "TLV", "Destination": "FRA", "Gate": "D1",  "DelayMinutes": 5  },
+
+    { "FlightId": "LY 324", "Airline": "El Al",           "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "17:05", "Origin": "LHR", "Destination": "TLV", "Gate": "D2",  "DelayMinutes": 0  },
+    { "FlightId": "TK 788", "Airline": "Turkish Airlines","Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "17:25", "Origin": "TLV", "Destination": "IST", "Gate": "B1",  "DelayMinutes": 0  },
+    { "FlightId": "EK 533", "Airline": "Emirates",        "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "17:45", "Origin": "DXB", "Destination": "TLV", "Gate": "D9",  "DelayMinutes": 0  },
+    { "FlightId": "FR 8844","Airline": "Ryanair",         "Type": "Medium", "FlightType": "Departure", "ScheduledLocal": "18:00", "Origin": "TLV", "Destination": "FCO", "Gate": "C4",  "DelayMinutes": 10 },
+    { "FlightId": "W6 2343","Airline": "Wizz Air",        "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "18:15", "Origin": "CPH", "Destination": "TLV", "Gate": "C1",  "DelayMinutes": 0  },
+    { "FlightId": "AF 1493","Airline": "Air France",      "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "18:35", "Origin": "CDG", "Destination": "TLV", "Gate": "A4",  "DelayMinutes": 0  },
+    { "FlightId": "IZ 613", "Airline": "Arkia",           "Type": "Small",  "FlightType": "Departure", "ScheduledLocal": "18:50", "Origin": "TLV", "Destination": "ATH", "Gate": "A1",  "DelayMinutes": 0  },
+    { "FlightId": "UA 092", "Airline": "United Airlines", "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "19:10", "Origin": "TLV", "Destination": "JFK", "Gate": "D8",  "DelayMinutes": 0  },
+
+    { "FlightId": "BA 165", "Airline": "British Airways", "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "19:30", "Origin": "TLV", "Destination": "LHR", "Gate": "D10", "DelayMinutes": 20 },
+    { "FlightId": "LY 326", "Airline": "El Al",           "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "19:55", "Origin": "TLV", "Destination": "CDG", "Gate": "D7",  "DelayMinutes": 0  },
+    { "FlightId": "OS 744", "Airline": "Austrian Airlines","Type":"Medium", "FlightType": "Arrival",   "ScheduledLocal": "20:10", "Origin": "VIE", "Destination": "TLV", "Gate": "B2",  "DelayMinutes": 0  },
+    { "FlightId": "DL 469", "Airline": "Delta Air Lines", "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "20:30", "Origin": "TLV", "Destination": "JFK", "Gate": "D1",  "DelayMinutes": 0  },
+    { "FlightId": "AZ 743", "Airline": "ITA Airways",     "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "20:50", "Origin": "FCO", "Destination": "TLV", "Gate": "B3",  "DelayMinutes": 15 },
+    { "FlightId": "KL 4826","Airline": "KLM",             "Type": "Medium", "FlightType": "Departure", "ScheduledLocal": "21:05", "Origin": "TLV", "Destination": "AMS", "Gate": "B4",  "DelayMinutes": 0  },
+    { "FlightId": "QR 503", "Airline": "Qatar Airways",   "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "21:25", "Origin": "TLV", "Destination": "DOH", "Gate": "D9",  "DelayMinutes": 5  },
+    { "FlightId": "TK 790", "Airline": "Turkish Airlines","Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "21:45", "Origin": "IST", "Destination": "TLV", "Gate": "B6",  "DelayMinutes": 0  },
+
+    { "FlightId": "LY 328", "Airline": "El Al",           "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "22:10", "Origin": "JFK", "Destination": "TLV", "Gate": "D2",  "DelayMinutes": 10 },
+    { "FlightId": "EK 534", "Airline": "Emirates",        "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "22:30", "Origin": "TLV", "Destination": "DXB", "Gate": "D7",  "DelayMinutes": 0  },
+    { "FlightId": "LH 690", "Airline": "Lufthansa",       "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "22:50", "Origin": "FRA", "Destination": "TLV", "Gate": "D8",  "DelayMinutes": 20 },
+    { "FlightId": "U2 6195","Airline": "EasyJet",         "Type": "Medium", "FlightType": "Arrival",   "ScheduledLocal": "23:10", "Origin": "ZRH", "Destination": "TLV", "Gate": "C2",  "DelayMinutes": 0  },
+    { "FlightId": "AF 1494","Airline": "Air France",      "Type": "Large",  "FlightType": "Departure", "ScheduledLocal": "23:30", "Origin": "TLV", "Destination": "CDG", "Gate": "A6",  "DelayMinutes": 0  },
+    { "FlightId": "LY 002", "Airline": "El Al",           "Type": "Large",  "FlightType": "Arrival",   "ScheduledLocal": "23:55", "Origin": "JFK", "Destination": "TLV", "Gate": "D10", "DelayMinutes": 0  }
+  ],
+
+  "PeakHours": {
+    "_comment": "Hour ranges (local) of expected high traffic — useful to tune simulation density",
+    "MorningPeak":   { "From": "06:00", "To": "09:00", "AvgMovementsPerHour": 8 },
+    "AfternoonPeak": { "From": "14:00", "To": "18:00", "AvgMovementsPerHour": 9 },
+    "EveningPeak":   { "From": "19:00", "To": "22:00", "AvgMovementsPerHour": 7 }
+  }
+}
