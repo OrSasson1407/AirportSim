@@ -98,6 +98,21 @@
         <!-- ── Chart colours ─────────────────────────────────────────── -->
         <SolidColorBrush x:Key="AtcGraphLine">#DC00D9F5</SolidColorBrush>
         <SolidColorBrush x:Key="AtcGraphFill">#2800D9F5</SolidColorBrush>
+        
+        <!-- ── Radar Specific Additions ──────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcRadarGrid">#1A00D9F5</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcRadarSweep">#3300D9F5</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcFlightPath">#8800D9F5</SolidColorBrush>
+
+        <!-- ── Aircraft & UI Geometries ──────────────────────────────── -->
+        <!-- Standard Commercial Jet (Top-Down) -->
+        <StreamGeometry x:Key="AtcIconPlane">M21,16v-2l-8-5V3.5c0-0.83-0.67-1.5-1.5-1.5S10,2.67,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z</StreamGeometry>
+        
+        <!-- Emergency Alert Triangle -->
+        <StreamGeometry x:Key="AtcIconAlert">M12,2L1,21H23M12,6L19.53,19H4.47M11,10V14H13V10M11,16V18H13V16</StreamGeometry>
+        
+        <!-- Target Reticle (Useful for Radar Selection) -->
+        <StreamGeometry x:Key="AtcIconReticle">M12,2V4M12,20V22M2,12H4M20,12H22M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6Z</StreamGeometry>
 
     </Application.Resources>
 </Application>

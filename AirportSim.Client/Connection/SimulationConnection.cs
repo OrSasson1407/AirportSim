@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.SignalR.Client;
 using AirportSim.Shared.Models;
@@ -12,6 +13,7 @@ namespace AirportSim.Client.Connection
         // ── Events ────────────────────────────────────────────────────────────
         public event Action<SimSnapshot>? OnSnapshotReceived;
         public event Action<string>?      OnAlertReceived;
+        public event Action<List<string>>? OnAudioTriggersReceived; // NEW
         public event Action?              OnConnected;
         public event Action?              OnDisconnected;  // NEW
 
@@ -41,6 +43,9 @@ namespace AirportSim.Client.Connection
 
             _hubConnection.On<string>("ReceiveAlert", msg =>
                 OnAlertReceived?.Invoke(msg));
+
+            _hubConnection.On<List<string>>("ReceiveAudioTriggers", files =>
+                OnAudioTriggersReceived?.Invoke(files)); // NEW
 
             // ── Connection lifecycle ──────────────────────────────────────────
             _hubConnection.Reconnected += _ =>
@@ -79,11 +84,11 @@ namespace AirportSim.Client.Connection
         // ── Commands → server ─────────────────────────────────────────────────
 
         public Task SetTimeScaleAsync(double scale)   => SendAsync("SetTimeScale", scale);
-        public Task SetPausedAsync(bool isPaused)      => SendAsync("SetPaused", isPaused);
-        public Task StepSpeedUpAsync()                 => SendAsync("StepSpeedUp");
-        public Task StepSpeedDownAsync()               => SendAsync("StepSpeedDown");
-        public Task DeclareEmergencyAsync()            => SendAsync("DeclareEmergency");  // NEW
-        public Task CycleWeatherAsync()                => SendAsync("CycleWeather");      // NEW
+        public Task SetPausedAsync(bool isPaused)     => SendAsync("SetPaused", isPaused);
+        public Task StepSpeedUpAsync()                => SendAsync("StepSpeedUp");
+        public Task StepSpeedDownAsync()              => SendAsync("StepSpeedDown");
+        public Task DeclareEmergencyAsync()           => SendAsync("DeclareEmergency");  // NEW
+        public Task CycleWeatherAsync()               => SendAsync("CycleWeather");      // NEW
 
         // NEW: safe fire-and-forget — silently drops if not connected
         private async Task SendAsync(string method, params object[] args)

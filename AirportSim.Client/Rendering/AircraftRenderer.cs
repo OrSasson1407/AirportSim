@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Media;
 using AirportSim.Shared.Models;
 
@@ -14,6 +15,14 @@ namespace AirportSim.Client.Rendering
         private readonly Typeface _labelFont    = new("Arial");
         private readonly Typeface _labelBold    = new("Arial", FontStyle.Normal, FontWeight.Bold);
 
+        // ── Cached Global Resources ───────────────────────────────────────────
+        private bool _resourcesLoaded = false;
+        private StreamGeometry? _planeGeometry;
+        private IBrush _brushEmergency = Brushes.Red;
+        private IBrush _brushGoAround = Brushes.Orange;
+        private IBrush _brushArrival = Brushes.LightGreen;
+        private IBrush _brushDeparture = Brushes.Cyan;
+
         // ── Exhaust trail particles ───────────────────────────────────────────
         private class TrailParticle
         {
@@ -21,11 +30,35 @@ namespace AirportSim.Client.Rendering
         }
 
         private readonly Dictionary<string, List<TrailParticle>> _trails   = new();
-        private readonly Random                                   _rand     = new();
+        private readonly Random                                  _rand     = new();
 
         // ── Emergency flash state per aircraft ────────────────────────────────
         private readonly Dictionary<string, double> _flashAccum = new();
         private const double FlashIntervalMs = 350;
+
+        private void EnsureResourcesLoaded()
+        {
+            if (_resourcesLoaded) return;
+            
+            if (Application.Current != null)
+            {
+                Application.Current.TryFindResource("AtcIconPlane", out var plane);
+                _planeGeometry = plane as StreamGeometry;
+
+                if (Application.Current.TryFindResource("AtcDanger", out var danger))
+                    _brushEmergency = (IBrush)danger!;
+
+                if (Application.Current.TryFindResource("AtcWarning", out var warning))
+                    _brushGoAround = (IBrush)warning!;
+
+                if (Application.Current.TryFindResource("AtcRunwayArrival", out var arrival))
+                    _brushArrival = (IBrush)arrival!;
+
+                if (Application.Current.TryFindResource("AtcRunwayDeparture", out var departure))
+                    _brushDeparture = (IBrush)departure!;
+            }
+            _resourcesLoaded = true;
+        }
 
         // ── Main entry point ──────────────────────────────────────────────────
 
@@ -34,6 +67,8 @@ namespace AirportSim.Client.Rendering
                            SimSnapshot    targetSnap,
                            double         t)
         {
+            EnsureResourcesLoaded();
+
             // Purge trails for aircraft that have left the scene
             var activeIds = targetSnap.ActiveAircraft.Select(a => a.FlightId).ToHashSet();
             foreach (var k in _trails.Keys.Where(k => !activeIds.Contains(k)).ToList())
@@ -78,178 +113,32 @@ namespace AirportSim.Client.Rendering
                                        AircraftState  ac,
                                        double         heading)
         {
+            if (_planeGeometry == null) return;
+
+            IBrush fill = GetAircraftColor(ac);
+            
+            // Adjust scale based on aircraft type
+            double scale = ac.Type switch
+            {
+                AircraftType.Small => 0.8,
+                AircraftType.Large => 1.8,
+                _ => 1.2
+            };
+
+            // Inverse scale the outline so the stroke thickness remains consistent 
+            // regardless of whether it's a small or large plane.
+            var outline = new Pen(Brushes.White, 1.0 / scale);
+
+            // The SVG is roughly 24x24, meaning its visual center is at 12,12.
+            // The nose points UP (Y=0) in the SVG. Our 0 heading is East (+X).
+            // We translate to center, scale it, and rotate by heading + 90 to align.
             using (ctx.PushTransform(
-                Matrix.CreateRotation(heading * Math.PI / 180.0)))
+                Matrix.CreateTranslation(-12, -12) * 
+                Matrix.CreateScale(scale, scale) * 
+                Matrix.CreateRotation((heading + 90) * Math.PI / 180.0)))
             {
-                switch (ac.Type)
-                {
-                    case AircraftType.Small:
-                        DrawSmall(ctx, ac);
-                        break;
-                    case AircraftType.Medium:
-                        DrawMedium(ctx, ac);
-                        break;
-                    case AircraftType.Large:
-                        DrawLarge(ctx, ac);
-                        break;
-                }
+                ctx.DrawGeometry(fill, outline, _planeGeometry);
             }
-        }
-
-        // Small — light prop / regional jet: simple swept triangle
-        private void DrawSmall(DrawingContext ctx, AircraftState ac)
-        {
-            IBrush fill    = GetAircraftColor(ac);
-            var    outline = new Pen(Brushes.White, 0.8);
-
-            // Fuselage
-            var fuse = MakePath(new[]
-            {
-                new Point( 12,   0),   // nose
-                new Point( -8,  -4),   // left tail
-                new Point( -8,   4),   // right tail
-            });
-            ctx.DrawGeometry(fill, outline, fuse);
-
-            // Wings — thin swept pair
-            var wings = MakePath(new[]
-            {
-                new Point(  2,   0),
-                new Point( -6, -14),
-                new Point( -9, -14),
-                new Point( -4,   0),
-                new Point( -9,  14),
-                new Point( -6,  14),
-            });
-            ctx.DrawGeometry(fill, outline, wings);
-        }
-
-        // Medium — narrow-body (737 / A320 style)
-        private void DrawMedium(DrawingContext ctx, AircraftState ac)
-        {
-            IBrush fill    = GetAircraftColor(ac);
-            var    outline = new Pen(Brushes.White, 1.0);
-
-            // Fuselage
-            var fuse = MakePath(new[]
-            {
-                new Point( 18,   0),   // nose
-                new Point(  8,  -3),
-                new Point(-14,  -3),   // rear
-                new Point(-14,   3),
-                new Point(  8,   3),
-            });
-            ctx.DrawGeometry(fill, outline, fuse);
-
-            // Main wings
-            var wings = MakePath(new[]
-            {
-                new Point(  6,  -2),
-                new Point( -2, -22),
-                new Point( -7, -22),
-                new Point( -4,  -2),
-                new Point( -4,   2),
-                new Point( -7,  22),
-                new Point( -2,  22),
-                new Point(  6,   2),
-            });
-            ctx.DrawGeometry(fill, outline, wings);
-
-            // Tail fin (vertical stabiliser stub)
-            var tail = MakePath(new[]
-            {
-                new Point(-11,  0),
-                new Point(-14, -6),
-                new Point(-14,  0),
-            });
-            ctx.DrawGeometry(fill, new Pen(Brushes.White, 0.6), tail);
-
-            // Horizontal stabilisers
-            var stab = MakePath(new[]
-            {
-                new Point(-11,  -1),
-                new Point(-14,  -9),
-                new Point(-16,  -9),
-                new Point(-14,  -1),
-                new Point(-14,   1),
-                new Point(-16,   9),
-                new Point(-14,   9),
-                new Point(-11,   1),
-            });
-            ctx.DrawGeometry(fill, new Pen(Brushes.White, 0.6), stab);
-        }
-
-        // Large — wide-body (747 / A380 style)
-        private void DrawLarge(DrawingContext ctx, AircraftState ac)
-        {
-            IBrush fill    = GetAircraftColor(ac);
-            var    outline = new Pen(Brushes.White, 1.2);
-
-            // Wide fuselage
-            var fuse = MakePath(new[]
-            {
-                new Point( 26,   0),   // nose
-                new Point( 14,  -5),
-                new Point(-18,  -5),   // rear body
-                new Point(-22,  -3),
-                new Point(-22,   3),
-                new Point(-18,   5),
-                new Point( 14,   5),
-            });
-            ctx.DrawGeometry(fill, outline, fuse);
-
-            // Main wings — wide, swept
-            var wings = MakePath(new[]
-            {
-                new Point( 10,  -4),
-                new Point(  0, -32),
-                new Point( -6, -32),
-                new Point( -4,  -4),
-                new Point( -4,   4),
-                new Point( -6,  32),
-                new Point(  0,  32),
-                new Point( 10,   4),
-            });
-            ctx.DrawGeometry(fill, outline, wings);
-
-            // Engine pods under wings (two per side)
-            DrawEngine(ctx, fill,  -2, -18);
-            DrawEngine(ctx, fill,   4, -24);
-            DrawEngine(ctx, fill,  -2,  18);
-            DrawEngine(ctx, fill,   4,  24);
-
-            // Tail fin
-            var tail = MakePath(new[]
-            {
-                new Point(-16,   0),
-                new Point(-20, -10),
-                new Point(-22,  -1),
-            });
-            ctx.DrawGeometry(fill, new Pen(Brushes.White, 0.8), tail);
-
-            // Horizontal stabilisers
-            var stab = MakePath(new[]
-            {
-                new Point(-17,  -1),
-                new Point(-21, -13),
-                new Point(-24, -13),
-                new Point(-20,  -1),
-                new Point(-20,   1),
-                new Point(-24,  13),
-                new Point(-21,  13),
-                new Point(-17,   1),
-            });
-            ctx.DrawGeometry(fill, new Pen(Brushes.White, 0.8), stab);
-        }
-
-        private void DrawEngine(DrawingContext ctx, IBrush fill, double x, double y)
-        {
-            // Small rectangle representing an engine nacelle
-            ctx.FillRectangle(fill,
-                new Rect(x - 5, y - 2, 10, 4));
-            ctx.DrawRectangle(null,
-                new Pen(Brushes.White, 0.5),
-                new Rect(x - 5, y - 2, 10, 4));
         }
 
         // ── Colour logic ──────────────────────────────────────────────────────
@@ -257,14 +146,14 @@ namespace AirportSim.Client.Rendering
         private IBrush GetAircraftColor(AircraftState ac)
         {
             if (ac.Status == AircraftStatus.Emergency)
-                return new SolidColorBrush(Color.FromRgb(220, 40, 40));
+                return _brushEmergency;
 
             if (ac.Status == AircraftStatus.GoAround)
-                return new SolidColorBrush(Color.FromRgb(255, 180, 0));
+                return _brushGoAround;
 
             return ac.FlightType == FlightType.Arrival
-                ? new SolidColorBrush(Color.FromRgb(60,  180, 255))   // arrivals: blue
-                : new SolidColorBrush(Color.FromRgb(80,  220, 140));   // departures: green
+                ? _brushArrival
+                : _brushDeparture;
         }
 
         // ── Labels ────────────────────────────────────────────────────────────
@@ -308,14 +197,10 @@ namespace AirportSim.Client.Rendering
                 new Rect(lx - 2, ly, boxW, boxH),
                 4);
 
-            // Flight ID — bold, coloured by type
-            IBrush idColor = ac.Status == AircraftStatus.Emergency
-                ? Brushes.OrangeRed
-                : ac.FlightType == FlightType.Arrival
-                    ? new SolidColorBrush(Color.FromRgb(100, 210, 255))
-                    : new SolidColorBrush(Color.FromRgb(100, 255, 160));
+            // Flight ID — bold, coloured dynamically
+            IBrush idColor = GetAircraftColor(ac);
 
-            DrawText(ctx, line1, _labelBold, 13, idColor,    new Point(lx + 4, ly + 4));
+            DrawText(ctx, line1, _labelBold, 13, idColor,     new Point(lx + 4, ly + 4));
             DrawText(ctx, line2, _labelFont, 11, Brushes.LightGray, new Point(lx + 4, ly + 20));
             DrawText(ctx, line3, _labelFont, 10, Brushes.Gray,      new Point(lx + 4, ly + 33));
 
@@ -434,18 +319,7 @@ namespace AirportSim.Client.Rendering
             }
         }
 
-        // ── Geometry helpers ──────────────────────────────────────────────────
-
-        private static StreamGeometry MakePath(Point[] points)
-        {
-            var geo = new StreamGeometry();
-            using var ctx = geo.Open();
-            ctx.BeginFigure(points[0], true);
-            for (int i = 1; i < points.Length; i++)
-                ctx.LineTo(points[i]);
-            ctx.EndFigure(true);
-            return geo;
-        }
+        // ── Math ──────────────────────────────────────────────────────────────
 
         private static void DrawText(DrawingContext ctx,
                                      string         text,
@@ -461,8 +335,6 @@ namespace AirportSim.Client.Rendering
                 face, size, brush);
             ctx.DrawText(ft, origin);
         }
-
-        // ── Math ──────────────────────────────────────────────────────────────
 
         private static double Lerp(double a, double b, double t) =>
             a + (b - a) * t;
