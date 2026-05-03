@@ -1,0 +1,22 @@
+# Build output
+**/bin/
+**/obj/
+
+# IDE
+**/.vs/
+**/.vscode/
+**/.idea/
+**/*.user
+
+# Git
+.git/
+.gitignore
+
+# Docker
+**/Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# EF migrations are included — they're needed at runtime for db.Database.Migrate()
+# Exclude only local dev overrides
+**/appsettings.Local.json

@@ -9,6 +9,7 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"      Version="9.0.4"  />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design"       Version="9.0.4"
                       PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.4" />
   </ItemGroup>
 
   <PropertyGroup>

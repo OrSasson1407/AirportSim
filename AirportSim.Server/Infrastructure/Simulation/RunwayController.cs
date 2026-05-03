@@ -2,7 +2,7 @@ using AirportSim.Shared.Models;
 
 namespace AirportSim.Server.Infrastructure.Simulation;
 
-public enum RunwayOpsMode { Segregated, Mixed }
+// RunwayOpsMode enum removed from here — now in AirportSim.Shared.Models.Enums
 
 public class RunwayController
 {
@@ -40,9 +40,8 @@ public class RunwayController
     public void SetEmergencyLockdown(bool isLocked)
     {
         EmergencyLockdown = isLocked;
-        PendingAlerts.Add(isLocked
-            ? "🚨 AIRFIELD LOCKDOWN: All departures holding for emergency arrival."
-            : "✅ LOCKDOWN LIFTED: Normal departure operations resuming.");
+        if (isLocked) PendingAlerts.Add("🚨 AIRFIELD LOCKDOWN: All departures holding for emergency arrival.");
+        else          PendingAlerts.Add("✅ LOCKDOWN LIFTED: Normal departure operations resuming.");
     }
 
     public RunwayId GetBestRunway(FlightType flightType)
@@ -50,7 +49,10 @@ public class RunwayController
         if (OpsMode == RunwayOpsMode.Segregated)
             return flightType == FlightType.Arrival ? RunwayId.Runway28L : RunwayId.Runway28R;
 
-        var best = _runways.OrderBy(r => r.CooldownMs).ThenBy(r => r.IsFree ? 0 : 1).First();
+        var best = _runways
+            .OrderBy(r => r.CooldownMs)
+            .ThenBy(r => r.IsFree ? 0 : 1)
+            .First();
         return best.Id;
     }
 

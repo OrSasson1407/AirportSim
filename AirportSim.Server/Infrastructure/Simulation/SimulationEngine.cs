@@ -1,4 +1,5 @@
 using AirportSim.Server.Application.Commands;
+using AirportSim.Server.Application.Queries;
 using AirportSim.Server.Domain.Interfaces;
 using AirportSim.Shared.Models;
 using MediatR;
@@ -11,6 +12,8 @@ public class SimulationEngine : BackgroundService, ISimulationService
 {
     private readonly IBroadcastService _broadcast;
     private readonly IMediator         _mediator;
+    // ── CACHE: injected abstraction — no Redis import here ────────────────────
+    private readonly ICacheService     _cache;
 
     public  SimClock             Clock           { get; }
     private FlightScheduler      _scheduler;
@@ -31,8 +34,8 @@ public class SimulationEngine : BackgroundService, ISimulationService
 
     public int RvrMeters { get; private set; } = 10000;
 
-    private bool   _isWindShearActive;
-    private double _windShearRemainingMs;
+    private bool      _isWindShearActive;
+    private double    _windShearRemainingMs;
     private SimPoint? _stormCenter;
     private SimPoint  _stormVelocity;
 
@@ -57,10 +60,12 @@ public class SimulationEngine : BackgroundService, ISimulationService
     private readonly LinkedList<SimSnapshot> _snapshotHistory = new();
     private const int MaxHistoryFrames = 600;
 
-    public SimulationEngine(IBroadcastService broadcast, IMediator mediator)
+    // ── CACHE: ICacheService added to constructor ──────────────────────────────
+    public SimulationEngine(IBroadcastService broadcast, IMediator mediator, ICacheService cache)
     {
         _broadcast      = broadcast;
         _mediator       = mediator;
+        _cache          = cache;
         Clock           = new SimClock(DateTime.Today.AddHours(5));
         _scheduler      = new FlightScheduler();
         _runway         = new RunwayController();
@@ -145,6 +150,8 @@ public class SimulationEngine : BackgroundService, ISimulationService
         _gates.LoadLayout(layoutId);
         _groundVehicles.Initialize(_gates);
         GenerateAtis();
+        // ── CACHE: invalidate layout cache on reload ───────────────────────────
+        _ = _cache.RemoveAsync(CacheKeys.LayoutPrefix + layoutId);
         PushAlert($"🌍 Loaded airport layout: {layoutId.ToUpper()}");
     }
 
@@ -154,6 +161,12 @@ public class SimulationEngine : BackgroundService, ISimulationService
     {
         _scheduler.Initialize(Clock.SimulatedNow);
         GenerateAtis();
+
+        // ── CACHE: log Redis connectivity on startup ───────────────────────────
+        bool redisUp = await _cache.PingAsync(stoppingToken);
+        Console.WriteLine(redisUp
+            ? "[SimulationEngine] Redis connected — snapshot caching active."
+            : "[SimulationEngine] Redis unavailable — running without cache (degraded mode).");
 
         DateTime lastBroadcast = DateTime.UtcNow;
         DateTime lastTick      = DateTime.UtcNow;
@@ -185,7 +198,35 @@ public class SimulationEngine : BackgroundService, ISimulationService
         }
     }
 
-    // ── Simulation tick ───────────────────────────────────────────────────────
+    // ── Broadcast — writes snapshot to Redis every tick ───────────────────────
+
+    private async Task BroadcastSnapshotAsync(CancellationToken ct)
+    {
+        var snapshot = BuildSnapshot();
+
+        _snapshotHistory.AddLast(snapshot);
+        if (_snapshotHistory.Count > MaxHistoryFrames)
+            _snapshotHistory.RemoveFirst();
+
+        if (_pendingAudio.Count > 0)
+        {
+            await _broadcast.BroadcastAudioTriggersAsync(new List<string>(_pendingAudio), ct);
+            _pendingAudio.Clear();
+        }
+
+        // ── CACHE: write latest snapshot to Redis (fire-and-forget) ───────────
+        // TTL is 2 seconds — slightly longer than the 200ms broadcast interval
+        // so the cache is always warm between ticks.
+        _ = _cache.SetAsync(
+            CacheKeys.LatestSnapshot,
+            snapshot,
+            TimeSpan.FromSeconds(2),
+            ct);
+
+        await _broadcast.BroadcastSnapshotAsync(snapshot, ct);
+    }
+
+    // ── Simulation tick (identical to Step 3) ────────────────────────────────
 
     private void UpdateSimulation(int realElapsedMs)
     {
@@ -233,7 +274,6 @@ public class SimulationEngine : BackgroundService, ISimulationService
 
         _groundVehicles.Tick(simDeltaMs);
 
-        // Holding stack
         var holdingArrivals = _activeAircraft
             .Where(a => a.State.FlightType == FlightType.Arrival
                      && a.State.Phase == AircraftPhase.Holding)
@@ -252,7 +292,6 @@ public class SimulationEngine : BackgroundService, ISimulationService
             PushAlert($"📡 ATC: {cleared.State.FlightId} cleared from holding stack, resuming approach.");
         }
 
-        // Spawn next scheduled flight
         var next = _scheduler.PeekNextFlight();
         if (next != null && Clock.SimulatedNow >= next.ScheduledTime)
         {
@@ -264,10 +303,9 @@ public class SimulationEngine : BackgroundService, ISimulationService
             if (gate != null)
             {
                 aircraft.State.AssignedGate = gate;
-                // ── FIXED: explicit types on deconstruction ────────────────
-                (double gx, double gy) = _gates.GetGatePosition(gate);
-                aircraft.State.GateX = gx;
-                aircraft.State.GateY = gy;
+                (double gx, double gy)      = _gates.GetGatePosition(gate);
+                aircraft.State.GateX        = gx;
+                aircraft.State.GateY        = gy;
             }
 
             _totalDelayMinutes += flightEvent.DelayMinutes;
@@ -284,7 +322,6 @@ public class SimulationEngine : BackgroundService, ISimulationService
             }
         }
 
-        // Tick each aircraft + detect completion events
         foreach (var ac in _activeAircraft)
         {
             bool wasParked   = ac.State.Phase == AircraftPhase.Parked;
@@ -293,7 +330,6 @@ public class SimulationEngine : BackgroundService, ISimulationService
 
             ac.Tick(simDeltaMs, _runway, _gates, _weather, RvrMeters);
 
-            // Arrival landed
             if (ac.State.FlightType == FlightType.Arrival
                 && !wasParked
                 && ac.State.Phase == AircraftPhase.Parked
@@ -307,7 +343,6 @@ public class SimulationEngine : BackgroundService, ISimulationService
                     ac.State.CurrentFuelPercent, Clock.SimulatedNow));
             }
 
-            // Departure airborne
             if (ac.State.FlightType == FlightType.Departure
                 && !wasClimbing
                 && ac.State.Phase == AircraftPhase.Climbing)
@@ -322,7 +357,6 @@ public class SimulationEngine : BackgroundService, ISimulationService
                     ac.State.CurrentFuelPercent, Clock.SimulatedNow));
             }
 
-            // Diversion
             if (!wasDiverted && ac.State.Phase == AircraftPhase.Diverted)
             {
                 _diversionsToday++;
@@ -334,7 +368,6 @@ public class SimulationEngine : BackgroundService, ISimulationService
                     ac.State.CurrentFuelPercent, Clock.SimulatedNow));
             }
 
-            // Go-around audio
             if (ac.State.FlightType == FlightType.Arrival
                 && ac.State.Phase == AircraftPhase.GoAround
                 && ac.LastGoAroundWasWeatherForced)
@@ -344,7 +377,6 @@ public class SimulationEngine : BackgroundService, ISimulationService
                 PushAlert($"↩ {ac.State.FlightId}: GO-AROUND (weather/separation).");
             }
 
-            // Emergency lockdown lift
             if (ac.State.Status == AircraftStatus.Emergency
                 && ac.State.Phase == AircraftPhase.Parked)
                 _runway.SetEmergencyLockdown(false);
@@ -360,23 +392,7 @@ public class SimulationEngine : BackgroundService, ISimulationService
         _activeAircraft.RemoveAll(a => a.IsFinished);
     }
 
-    // ── Broadcast ─────────────────────────────────────────────────────────────
-
-    private async Task BroadcastSnapshotAsync(CancellationToken ct)
-    {
-        var snapshot = BuildSnapshot();
-        _snapshotHistory.AddLast(snapshot);
-        if (_snapshotHistory.Count > MaxHistoryFrames)
-            _snapshotHistory.RemoveFirst();
-
-        if (_pendingAudio.Count > 0)
-        {
-            await _broadcast.BroadcastAudioTriggersAsync(new List<string>(_pendingAudio), ct);
-            _pendingAudio.Clear();
-        }
-
-        await _broadcast.BroadcastSnapshotAsync(snapshot, ct);
-    }
+    // ── Private helpers (identical to Step 3) ─────────────────────────────────
 
     private SimSnapshot BuildSnapshot() => new()
     {

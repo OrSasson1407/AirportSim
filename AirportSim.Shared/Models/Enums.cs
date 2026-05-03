@@ -17,7 +17,7 @@ namespace AirportSim.Shared.Models
     {
         // Shared
         Parked,
-        Pushback, // NEW: Tug pushback phase
+        Pushback,
         Taxiing,
 
         // Arrival phases
@@ -32,7 +32,7 @@ namespace AirportSim.Shared.Models
         Takeoff,
         Climbing,
         Departed,
-        
+
         // Diversion Phase
         Diverted
     }
@@ -46,7 +46,7 @@ namespace AirportSim.Shared.Models
     public enum RunwayId
     {
         Runway28L,
-        Runway28R 
+        Runway28R
     }
 
     public enum WeatherCondition
@@ -64,5 +64,13 @@ namespace AirportSim.Shared.Models
         Emergency,
         GoAround,
         Diverting
+    }
+
+    // Moved here from Infrastructure so Domain and Application layers can reference it
+    // without creating a dependency on Infrastructure
+    public enum RunwayOpsMode
+    {
+        Segregated,
+        Mixed
     }
 }

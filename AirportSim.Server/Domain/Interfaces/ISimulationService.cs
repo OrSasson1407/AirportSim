@@ -1,11 +1,12 @@
+using AirportSim.Server.Infrastructure.Simulation;
 using AirportSim.Shared.Models;
 
 namespace AirportSim.Server.Domain.Interfaces;
 
 /// <summary>
 /// The contract the Application layer exposes for controlling the simulation.
-/// The Presentation layer (Hub, controllers) talks ONLY through this interface.
-/// Nothing here references SignalR, EF Core, or any infrastructure concern.
+/// Presentation (Hub, controllers) talks ONLY through this interface.
+/// Nothing here references SignalR, EF Core, or any other infrastructure concern.
 /// </summary>
 public interface ISimulationService
 {
