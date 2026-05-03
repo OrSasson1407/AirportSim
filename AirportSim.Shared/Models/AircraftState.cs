@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+
 namespace AirportSim.Shared.Models
 {
     public struct SimPoint
@@ -11,37 +14,47 @@ namespace AirportSim.Shared.Models
             new(a.X + (b.X - a.X) * t, a.Y + (b.Y - a.Y) * t);
     }
 
+    public enum TurnaroundPhase { None, Deplaning, Cleaning, Fueling, Boarding, Ready }
+
     public class AircraftState
     {
-        // Core identity
         public string       FlightId      { get; set; } = string.Empty;
         public AircraftType Type          { get; set; }
         public FlightType   FlightType    { get; set; }
+        public string       Origin        { get; set; } = string.Empty; 
+        public string       Destination   { get; set; } = string.Empty; 
 
-        // Phase / motion
+        // NEW: Track which runway this aircraft is targeting
+        public RunwayId     AssignedRunway { get; set; } 
+
         public AircraftPhase Phase         { get; set; }
         public double        PhaseProgress { get; set; }
         public SimPoint      Position      { get; set; }
         public double        Heading       { get; set; }
+        
+        public List<SimPoint> RecentTrail  { get; set; } = new();
 
-        // Status
         public AircraftStatus Status          { get; set; } = AircraftStatus.Normal;
         public string         EmergencyReason { get; set; } = string.Empty;
 
-        // Telemetry
         public int AltitudeFt    { get; set; }
         public int SpeedKts      { get; set; }
         public int GoAroundCount { get; set; }
-        
-        // NEW: Real-time telemetry for operational depth
         public double CurrentFuelPercent { get; set; } = 100.0;
 
-        // Gate assignment — set when spawned, used by renderer to position
-        // the aircraft at the correct stand while parked
-        public string AssignedGate { get; set; } = string.Empty;
+        public TurnaroundPhase Turnaround { get; set; } = TurnaroundPhase.None;
+        public double TurnaroundProgress { get; set; }
+        public int DelayMinutes { get; set; }
 
-        // World-space X position of this gate's stand (set by GateManager,
-        // read by Aircraft position logic when Phase == Parked / Taxiing)
+        public bool ClearedToPushback { get; set; }
+        public bool ClearedToTaxi     { get; set; }
+        public bool ClearedToTakeoff  { get; set; }
+        public bool ClearedToLand     { get; set; }
+
+        public int? AssignedSpeedKts   { get; set; }
+        public int? AssignedAltitudeFt { get; set; }
+
+        public string AssignedGate { get; set; } = string.Empty;
         public double GateX { get; set; }
         public double GateY { get; set; }
     }

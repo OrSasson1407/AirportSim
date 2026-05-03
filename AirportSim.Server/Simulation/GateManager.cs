@@ -7,17 +7,17 @@ using AirportSim.Shared.Models;
 
 namespace AirportSim.Server.Simulation
 {
-    /// <summary>
-    /// Tracks which gates are occupied and assigns stands to new aircraft.
-    /// Supports dynamic loading of airport layouts via JSON.
-    /// </summary>
+    public class Taxiway
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Use { get; set; } = string.Empty;
+        public List<SimPoint> Path { get; set; } = new();
+    }
+
     public class GateManager
     {
-        // ── Gate size categories ──────────────────────────────────────────────
-
         public enum GateSize { Small, Medium, Large }
 
-        // Added public set to properties so JSON deserializer can populate them
         public class GateSlot
         {
             public string   Name      { get; set; } = string.Empty;
@@ -29,7 +29,6 @@ namespace AirportSim.Server.Simulation
 
             public bool IsFree => Occupant == null;
 
-            // Parameterless constructor needed for System.Text.Json
             public GateSlot() { }
 
             public GateSlot(string name, string terminal, GateSize size, double x, double y)
@@ -42,50 +41,104 @@ namespace AirportSim.Server.Simulation
             }
         }
 
-        // ── Layout loading schema ─────────────────────────────────────────────
-
-        // This matches the structure of your airport-layout-*.json files
-        private class LayoutData
-        {
-            public string AirportCode { get; set; } = string.Empty;
-            public List<GateSlot> Gates { get; set; } = new();
-        }
-
         private List<GateSlot> _gates = new();
+        
+        public List<Taxiway> Taxiways { get; private set; } = new();
+        
+        // NEW: Store parsed ground vehicle routes
+        public Dictionary<string, List<SimPoint>> GroundRoutes { get; private set; } = new();
 
         public GateManager()
         {
-            // Default to TLV on startup if no layout is specified
             LoadLayout("tlv");
         }
 
-        // ── Dynamic Layout Loading ────────────────────────────────────────────
-
         public void LoadLayout(string layoutId)
         {
+            _gates.Clear();
+            Taxiways.Clear();
+            GroundRoutes.Clear(); // NEW
+
             try
             {
-                // Note: Ensure your JSON files have "Copy to Output Directory" set to "PreserveNewest"
                 string basePath = AppDomain.CurrentDomain.BaseDirectory;
-                string fileName = $"airport-layout-{layoutId.ToLower()}.json";
+                
+                string fileName = (layoutId.ToLower() is "lhr" or "jfk") 
+                    ? "airport-layouts-lhr-jfk.json" 
+                    : $"airport-layout-{layoutId.ToLower()}.json";
+                    
                 string fullPath = Path.Combine(basePath, fileName);
 
                 if (File.Exists(fullPath))
                 {
                     string json = File.ReadAllText(fullPath);
-                    var layoutOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    
-                    // We deserialize directly to List<GateSlot> assuming your JSON is just an array of gate objects.
-                    // If your JSON has a root object (like {"Gates": [...]}), use the LayoutData wrapper class above.
-                    // Assuming flat array based on typical setup:
-                    var loadedGates = JsonSerializer.Deserialize<List<GateSlot>>(json, layoutOptions);
+                    using JsonDocument doc = JsonDocument.Parse(json);
+                    JsonElement root = doc.RootElement;
+                    JsonElement airportNode = root;
 
-                    if (loadedGates != null && loadedGates.Any())
+                    if (root.TryGetProperty("Airports", out JsonElement airportsEl))
                     {
-                        _gates = loadedGates;
-                        Console.WriteLine($"[GateManager] Successfully loaded {loadedGates.Count} gates for layout: {layoutId.ToUpper()}");
-                        return;
+                        string searchKey = layoutId.ToUpper() == "LHR" ? "EGLL" : (layoutId.ToUpper() == "JFK" ? "KJFK" : layoutId.ToUpper());
+                        if (airportsEl.TryGetProperty(searchKey, out JsonElement specificAirport)) {
+                            airportNode = specificAirport;
+                        }
                     }
+
+                    // Parse Gates
+                    if (airportNode.TryGetProperty("Gates", out JsonElement gatesEl))
+                    {
+                        foreach (var gateProp in gatesEl.EnumerateObject())
+                        {
+                            if (gateProp.Name.StartsWith("_")) continue;
+                            var g = gateProp.Value;
+                            _gates.Add(new GateSlot {
+                                Name = gateProp.Name,
+                                Terminal = g.GetProperty("Terminal").GetString() ?? "",
+                                Size = Enum.TryParse<GateSize>(g.GetProperty("Size").GetString(), out var parsedSize) ? parsedSize : GateSize.Medium,
+                                X = g.GetProperty("X").GetDouble(),
+                                Y = g.GetProperty("Y").GetDouble()
+                            });
+                        }
+                    }
+
+                    // Parse Taxiways
+                    if (airportNode.TryGetProperty("Taxiways", out JsonElement twyEl))
+                    {
+                        foreach (var twyProp in twyEl.EnumerateObject())
+                        {
+                            if (twyProp.Name.StartsWith("_")) continue;
+                            var t = twyProp.Value;
+                            var twy = new Taxiway {
+                                Name = twyProp.Name,
+                                Use = t.GetProperty("Use").GetString() ?? ""
+                            };
+                            
+                            if (t.TryGetProperty("Path", out JsonElement pathEl))
+                            {
+                                foreach (var pt in pathEl.EnumerateArray()) {
+                                    twy.Path.Add(new SimPoint(pt.GetProperty("X").GetDouble(), pt.GetProperty("Y").GetDouble()));
+                                }
+                            }
+                            Taxiways.Add(twy);
+                        }
+                    }
+
+                    // NEW: Parse Ground Vehicle Routes
+                    if (airportNode.TryGetProperty("GroundVehicleRoutes", out JsonElement gvEl))
+                    {
+                        foreach (var gvProp in gvEl.EnumerateObject())
+                        {
+                            if (gvProp.Name.StartsWith("_")) continue;
+                            var path = new List<SimPoint>();
+                            foreach (var pt in gvProp.Value.EnumerateArray()) {
+                                path.Add(new SimPoint(pt.GetProperty("X").GetDouble(), pt.GetProperty("Y").GetDouble()));
+                            }
+                            GroundRoutes[gvProp.Name] = path;
+                        }
+                    }
+
+                    Console.WriteLine($"[GateManager] Loaded {_gates.Count} gates, {Taxiways.Count} taxiways, and {GroundRoutes.Count} vehicle routes for {layoutId.ToUpper()}");
+                    return;
                 }
                 else
                 {
@@ -97,7 +150,6 @@ namespace AirportSim.Server.Simulation
                 Console.WriteLine($"[GateManager] ERROR loading layout '{layoutId}': {ex.Message}");
             }
 
-            // Fallback to hardcoded TLV gates if file loading fails
             if (!_gates.Any())
             {
                 Console.WriteLine("[GateManager] Falling back to hardcoded TLV gate layout.");
@@ -105,96 +157,66 @@ namespace AirportSim.Server.Simulation
             }
         }
 
+        public List<SimPoint> GetArrivalRoute(SimPoint rolloutEnd, SimPoint gate)
+        {
+            var route = new List<SimPoint> { rolloutEnd };
+            var mainTwy = Taxiways.FirstOrDefault(t => t.Use.Contains("Arrival", StringComparison.OrdinalIgnoreCase));
+            
+            if (mainTwy != null && mainTwy.Path.Any()) {
+                route.AddRange(mainTwy.Path);
+                route.Add(new SimPoint(gate.X, mainTwy.Path.Last().Y)); 
+            } else {
+                route.Add(new SimPoint(gate.X, rolloutEnd.Y)); 
+            }
+            route.Add(gate);
+            return route;
+        }
+
+        public List<SimPoint> GetDepartureRoute(SimPoint gate)
+        {
+            var route = new List<SimPoint> { new SimPoint(gate.X, gate.Y + 30) }; 
+            
+            var mainTwy = Taxiways.FirstOrDefault(t => 
+                t.Use.Contains("Depart", StringComparison.OrdinalIgnoreCase) || 
+                t.Use.Contains("hold", StringComparison.OrdinalIgnoreCase) ||
+                t.Use.Contains("queue", StringComparison.OrdinalIgnoreCase));
+
+            if (mainTwy != null && mainTwy.Path.Any()) {
+                route.Add(new SimPoint(gate.X, mainTwy.Path.First().Y)); 
+                route.AddRange(mainTwy.Path);
+            } else {
+                route.Add(new SimPoint(gate.X, 500));
+                route.Add(new SimPoint(390, 500)); 
+            }
+            return route;
+        }
+
         private void LoadHardcodedTlvGates()
         {
             _gates = new List<GateSlot>
             {
-                // Terminal A
-                new("A1",  "A", GateSize.Small,  160,  400),
-                new("A2",  "A", GateSize.Small,  220,  400),
-                new("A3",  "A", GateSize.Medium, 280,  400),
-                new("A4",  "A", GateSize.Medium, 340,  400),
-                new("A5",  "A", GateSize.Small,  400,  400),
-                new("A6",  "A", GateSize.Small,  460,  400),
-
-                // Terminal B
-                new("B1",  "B", GateSize.Large,  560,  400),
-                new("B2",  "B", GateSize.Large,  620,  400),
-                new("B3",  "B", GateSize.Medium, 680,  400),
-                new("B4",  "B", GateSize.Medium, 740,  400),
-                new("B5",  "B", GateSize.Medium, 800,  400),
-                new("B6",  "B", GateSize.Large,  860,  400),
-
-                // Terminal C
-                new("C1",  "C", GateSize.Large,  980,  400),
-                new("C2",  "C", GateSize.Large,  1040, 400),
-                new("C3",  "C", GateSize.Medium, 1100, 400),
-                new("C4",  "C", GateSize.Medium, 1160, 400),
-                new("C12", "C", GateSize.Large,  1220, 400),
-                new("C14", "C", GateSize.Large,  1280, 400),
-
-                // Terminal D
-                new("D1",  "D", GateSize.Large,  1510, 400),
-                new("D2",  "D", GateSize.Large,  1570, 400),
-                new("D7",  "D", GateSize.Large,  1630, 400),
-                new("D8",  "D", GateSize.Large,  1690, 400),
-                new("D9",  "D", GateSize.Large,  1750, 400),
-                new("D10", "D", GateSize.Large,  1810, 400),
+                new("A1", "A", GateSize.Small, 160, 400),
+                new("A3", "A", GateSize.Medium, 280, 400),
+                new("B1", "B", GateSize.Large, 560, 400),
             };
         }
 
-
-        // ── Public API ────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// Assign a gate to a flight.
-        /// Priority order:
-        ///   1. Preferred gate by name (from FlightEvent.Gate) if free
-        ///   2. Any free gate that fits the aircraft size
-        ///   3. Any free gate (fallback — avoids stranding an aircraft)
-        /// Returns null only when the airport is completely full.
-        /// </summary>
-        public (string gateName, double gateX, double gateY)? Assign(
-            string flightId, string preferredGate, AircraftType aircraftType)
+        public (string gateName, double gateX, double gateY)? Assign(string flightId, string preferredGate, AircraftType aircraftType)
         {
-            // 1. Preferred gate by name
-            var preferred = _gates.FirstOrDefault(
-                g => g.Name == preferredGate && g.IsFree);
+            var preferred = _gates.FirstOrDefault(g => g.Name == preferredGate && g.IsFree);
+            if (preferred != null) { preferred.Occupant = flightId; return (preferred.Name, preferred.X, preferred.Y); }
 
-            if (preferred != null)
-            {
-                preferred.Occupant = flightId;
-                return (preferred.Name, preferred.X, preferred.Y);
-            }
-
-            // 2. Size-matched fallback
             GateSize ideal = SizeFor(aircraftType);
-
             var sizeFit = _gates.FirstOrDefault(g => g.IsFree && g.Size == ideal);
-            if (sizeFit != null)
-            {
-                sizeFit.Occupant = flightId;
-                return (sizeFit.Name, sizeFit.X, sizeFit.Y);
-            }
+            if (sizeFit != null) { sizeFit.Occupant = flightId; return (sizeFit.Name, sizeFit.X, sizeFit.Y); }
 
-            // 3. Any free gate
             var anyFree = _gates.FirstOrDefault(g => g.IsFree);
-            if (anyFree != null)
-            {
-                anyFree.Occupant = flightId;
-                return (anyFree.Name, anyFree.X, anyFree.Y);
-            }
+            if (anyFree != null) { anyFree.Occupant = flightId; return (anyFree.Name, anyFree.X, anyFree.Y); }
 
-            // Airport full
             return null;
         }
 
-        /// <summary>
-        /// Legacy overload — called without AircraftType (defaults to Medium).
-        /// Retained for compatibility while existing callers are updated.
-        /// </summary>
-        public (string gateName, double gateX, double gateY)? Assign(
-            string flightId, string preferredGate)
+        public (string gateName, double gateX, double gateY)? Assign(string flightId, string preferredGate)
             => Assign(flightId, preferredGate, AircraftType.Medium);
 
         public void Release(string flightId)
@@ -204,39 +226,24 @@ namespace AirportSim.Server.Simulation
         }
 
         public bool HasFreeGate() => _gates.Any(g => g.IsFree);
-
-        public int FreeGateCount()     => _gates.Count(g => g.IsFree);
+        public int FreeGateCount() => _gates.Count(g => g.IsFree);
         public int OccupiedGateCount() => _gates.Count(g => !g.IsFree);
 
-        /// <summary>
-        /// Snapshot list for the renderer — gate name, world position, occupant.
-        /// </summary>
-        public IReadOnlyList<(string name, double x, double y, string? occupant)>
-            GetSnapshot() =>
+        public IReadOnlyList<(string name, double x, double y, string? occupant)> GetSnapshot() =>
             _gates.Select(g => (g.Name, g.X, g.Y, g.Occupant)).ToList();
 
-        /// <summary>
-        /// Gates grouped by terminal — useful for UI panels and alert logic.
-        /// </summary>
-        public IReadOnlyDictionary<string, IReadOnlyList<(string name, bool occupied)>>
-            GetTerminalSnapshot()
+        public IReadOnlyDictionary<string, IReadOnlyList<(string name, bool occupied)>> GetTerminalSnapshot()
         {
-            return _gates
-                .GroupBy(g => g.Terminal)
-                .ToDictionary(
+            return _gates.GroupBy(g => g.Terminal).ToDictionary(
                     grp => grp.Key,
-                    grp => (IReadOnlyList<(string, bool)>)
-                        grp.Select(g => (g.Name, g.Occupant != null)).ToList());
+                    grp => (IReadOnlyList<(string, bool)>)grp.Select(g => (g.Name, g.Occupant != null)).ToList());
         }
-
-        // ── Helpers ───────────────────────────────────────────────────────────
 
         private static GateSize SizeFor(AircraftType type) => type switch
         {
-            AircraftType.Small  => GateSize.Small,
-            AircraftType.Medium => GateSize.Medium,
-            AircraftType.Large  => GateSize.Large,
-            _                   => GateSize.Medium
+            AircraftType.Small => GateSize.Small,
+            AircraftType.Large => GateSize.Large,
+            _ => GateSize.Medium
         };
     }
 }

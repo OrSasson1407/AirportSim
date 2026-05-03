@@ -1,135 +1,112 @@
 using System.Collections.Generic;
+using System.Linq;
 using AirportSim.Shared.Models;
 
 namespace AirportSim.Server.Simulation
 {
-    /// <summary>
-    /// Manages both physical runways independently.
-    /// Runway 28L  →  arrivals only.
-    /// Runway 28R  →  departures only (with emergency override).
-    /// </summary>
+    public enum RunwayOpsMode { Segregated, Mixed }
+
     public class RunwayController
     {
-        // ── Per-runway state ──────────────────────────────────────────────────
-
-        private readonly RunwaySlot _arrivalRunway   = new(RunwayId.Runway28L, "28L ARR");
-        private readonly RunwaySlot _departureRunway = new(RunwayId.Runway28R, "28R DEP");
+        private readonly List<RunwaySlot> _runways = new()
+        {
+            new RunwaySlot(RunwayId.Runway28L, "28L"),
+            new RunwaySlot(RunwayId.Runway28R, "28R")
+        };
 
         public readonly List<string> PendingAlerts = new();
 
-        // Weather and Emergency flags
         public bool IsClosedForWeather { get; private set; }
-        
-        // NEW: Halts all departures if an emergency is incoming
         public bool EmergencyLockdown { get; private set; } 
 
-        // ── Public read access ────────────────────────────────────────────────
+        // NEW: Operations Mode
+        public RunwayOpsMode OpsMode { get; private set; } = RunwayOpsMode.Segregated;
 
-        public RunwayStatus ArrivalStatus   => _arrivalRunway.Status;
-        public RunwayStatus DepartureStatus => _departureRunway.Status;
-
-        public bool ArrivalFree   => _arrivalRunway.IsFree;
-        public bool DepartureFree => _departureRunway.IsFree && !EmergencyLockdown;
-
-        // Snapshot data for broadcast
-        public List<RunwaySnapshot> GetSnapshots() => new()
+        public void SetOpsMode(RunwayOpsMode mode)
         {
-            _arrivalRunway.ToSnapshot(),
-            _departureRunway.ToSnapshot()
-        };
+            OpsMode = mode;
+            string modeStr = mode == RunwayOpsMode.Segregated ? "SEGREGATED (28L Arr / 28R Dep)" : "MIXED (Both Runways)";
+            PendingAlerts.Add($"🔄 Runway operations changed to: {modeStr}");
+        }
 
-        // ── Environmental & Emergency Control ─────────────────────────────────
+        public List<RunwaySnapshot> GetSnapshots() => _runways.Select(r => r.ToSnapshot()).ToList();
 
         public void SetWeatherClosure(bool isClosed)
         {
             IsClosedForWeather = isClosed;
-            if (isClosed)
-            {
-                PendingAlerts.Add("⛈ ALERT: Runways closed due to severe weather minimums.");
-            }
+            if (isClosed) PendingAlerts.Add("⛈ ALERT: Runways closed due to severe weather minimums.");
         }
 
         public void SetEmergencyLockdown(bool isLocked)
         {
             EmergencyLockdown = isLocked;
-            if (isLocked)
+            if (isLocked) PendingAlerts.Add("🚨 AIRFIELD LOCKDOWN: All departures holding for emergency arrival.");
+            else PendingAlerts.Add("✅ LOCKDOWN LIFTED: Normal departure operations resuming.");
+        }
+
+        // NEW: Assign best runway based on Ops Mode
+        public RunwayId GetBestRunway(FlightType flightType)
+        {
+            if (OpsMode == RunwayOpsMode.Segregated)
             {
-                PendingAlerts.Add("🚨 AIRFIELD LOCKDOWN: All departures holding for emergency arrival.");
+                return flightType == FlightType.Arrival ? RunwayId.Runway28L : RunwayId.Runway28R;
             }
             else
             {
-                PendingAlerts.Add("✅ LOCKDOWN LIFTED: Normal departure operations resuming.");
+                // In Mixed mode, pick the runway with the lowest cooldown/occupancy
+                var bestRunway = _runways.OrderBy(r => r.CooldownMs).ThenBy(r => r.IsFree ? 0 : 1).First();
+                return bestRunway.Id;
             }
         }
 
-        // ── Arrival runway ────────────────────────────────────────────────────
-
-        public bool TryOccupyArrival(string flightId)
+        public bool TryOccupy(RunwayId id, string flightId, FlightType type)
         {
             if (IsClosedForWeather) return false;
-            return _arrivalRunway.TryOccupy(flightId);
+            if (type == FlightType.Departure && EmergencyLockdown) return false;
+
+            var runway = _runways.FirstOrDefault(r => r.Id == id);
+            return runway != null && runway.TryOccupy(flightId);
         }
 
-        public void ReleaseArrival(string flightId)
-            => _arrivalRunway.Release(flightId);
-
-        // ── Departure runway ──────────────────────────────────────────────────
-
-        public bool TryOccupyDeparture(string flightId)
+        public void Release(RunwayId id, string flightId)
         {
-            if (IsClosedForWeather || EmergencyLockdown) return false;
-            return _departureRunway.TryOccupy(flightId);
+            var runway = _runways.FirstOrDefault(r => r.Id == id);
+            runway?.Release(flightId);
         }
 
-        public void ReleaseDeparture(string flightId)
-            => _departureRunway.Release(flightId);
-
-        // ── Emergency override: clears arrival runway immediately ─────────────
-
-        public void DeclareEmergencyOverride(string flightId)
+        public void DeclareEmergencyOverride(string flightId, RunwayId assignedRunway)
         {
-            if (!_arrivalRunway.IsFree && _arrivalRunway.OccupantId != flightId)
+            var runway = _runways.FirstOrDefault(r => r.Id == assignedRunway);
+            if (runway != null && !runway.IsFree && runway.OccupantId != flightId)
             {
-                PendingAlerts.Add(
-                    $"🚨 EMERGENCY OVERRIDE: {flightId} forcing go-around for {_arrivalRunway.OccupantId} on 28L!");
-                _arrivalRunway.ForceRelease();
+                PendingAlerts.Add($"🚨 EMERGENCY OVERRIDE: {flightId} forcing go-around for {runway.OccupantId} on {runway.Name}!");
+                runway.ForceRelease();
             }
             
             SetEmergencyLockdown(true);
         }
 
-        // ── Safety tick: detect stuck aircraft and process cooldowns ──────────
-
         public void Tick(double simDeltaMs)
         {
-            TickSlot(_arrivalRunway,   simDeltaMs, "28L");
-            TickSlot(_departureRunway, simDeltaMs, "28R");
-        }
-
-        private void TickSlot(RunwaySlot slot, double simDeltaMs, string name)
-        {
-            // Process wake turbulence/separation cooldown
-            if (slot.CooldownMs > 0)
+            foreach (var slot in _runways)
             {
-                slot.CooldownMs -= simDeltaMs;
-                if (slot.CooldownMs < 0) slot.CooldownMs = 0;
-            }
-
-            // Process occupied timeout
-            if (slot.Status == RunwayStatus.Occupied)
-            {
-                slot.OccupiedForSimMs += simDeltaMs;
-
-                if (slot.OccupiedForSimMs > 8 * 60_000) // 8 virtual minutes
+                if (slot.CooldownMs > 0)
                 {
-                    PendingAlerts.Add(
-                        $"⚠ INCURSION: Runway {name} timeout — forcing clear (was: {slot.OccupantId})");
-                    slot.ForceRelease();
+                    slot.CooldownMs -= simDeltaMs;
+                    if (slot.CooldownMs < 0) slot.CooldownMs = 0;
+                }
+
+                if (slot.Status == RunwayStatus.Occupied)
+                {
+                    slot.OccupiedForSimMs += simDeltaMs;
+                    if (slot.OccupiedForSimMs > 8 * 60_000) 
+                    {
+                        PendingAlerts.Add($"⚠ INCURSION: Runway {slot.Name} timeout — forcing clear (was: {slot.OccupantId})");
+                        slot.ForceRelease();
+                    }
                 }
             }
         }
-
-        // ── Inner slot class ──────────────────────────────────────────────────
 
         private class RunwaySlot
         {
@@ -138,11 +115,8 @@ namespace AirportSim.Server.Simulation
             public RunwayStatus Status        { get; private set; } = RunwayStatus.Free;
             public string?      OccupantId    { get; private set; }
             public double       OccupiedForSimMs { get; set; }
-            
-            // NEW: Separation timer
             public double       CooldownMs    { get; set; }
 
-            // Runway is only free if status is Free AND the wake turbulence cooldown is finished
             public bool IsFree => Status == RunwayStatus.Free && CooldownMs <= 0;
 
             public RunwaySlot(RunwayId id, string name) { Id = id; Name = name; }
@@ -168,7 +142,6 @@ namespace AirportSim.Server.Simulation
                 Status           = RunwayStatus.Free;
                 OccupantId       = null;
                 OccupiedForSimMs = 0;
-                // Enforce 1.5 virtual minutes of separation (wake turbulence) before next aircraft can enter
                 CooldownMs       = 1.5 * 60_000; 
             }
 

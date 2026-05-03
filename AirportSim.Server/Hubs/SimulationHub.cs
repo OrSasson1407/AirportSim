@@ -65,11 +65,34 @@ namespace AirportSim.Server.Hubs
             await Clients.All.ReceiveAlert($"🌍 Airport layout changed to {layoutId.ToUpper()}");
         }
 
-        // NEW: Allow UI to override the RVR
         public Task SetRvr(int rvrMeters)
         {
             _engine.SetRvr(rvrMeters);
             return Task.CompletedTask;
+        }
+
+        public async Task GrantClearance(string flightId, string clearanceType)
+        {
+            _engine.GrantClearance(flightId, clearanceType);
+            await Clients.All.ReceiveAlert($"🎤 ATC: {flightId} cleared to {clearanceType.ToLower()}");
+        }
+
+        public async Task AssignSpeed(string flightId, int speedKts)
+        {
+            _engine.AssignSpeed(flightId, speedKts);
+            await Clients.All.ReceiveAlert($"🎤 ATC: {flightId} reduce speed to {speedKts} knots.");
+        }
+
+        public async Task AssignAltitude(string flightId, int altitudeFt)
+        {
+            _engine.AssignAltitude(flightId, altitudeFt);
+            await Clients.All.ReceiveAlert($"🎤 ATC: {flightId} descend and maintain {altitudeFt} feet.");
+        }
+
+        // NEW: Replay Endpoint
+        public Task<List<SimSnapshot>> RequestReplayBuffer()
+        {
+            return Task.FromResult(_engine.GetReplayBuffer());
         }
     }
 }

@@ -5,46 +5,27 @@ using AirportSim.Shared.Models;
 
 namespace AirportSim.Server.Simulation
 {
-    /// <summary>
-    /// Runs every simulation tick and checks for:
-    ///   1. Separation violations — two airborne aircraft too close in the
-    ///      approach corridor (horizontal distance < threshold).
-    ///   2. Runway incursion attempts — a departing aircraft begins its
-    ///      takeoff roll while an arriving aircraft is still on the runway.
-    ///   3. Go-around cascade — three or more go-arounds in the last
-    ///      5 simulated minutes (indicates severe congestion).
-    /// Detected events are written to PendingAlerts; the engine drains them
-    /// each tick just like RunwayController.PendingAlerts.
-    /// </summary>
     public class ConflictDetector
     {
-        // ── Separation thresholds (world units) ───────────────────────────────
-        // World space is 2000 × 600.  A "world unit" ≈ 0.5 m at real scale.
-        // 120 wu ≈ 3 NM minimum radar separation.
         private const double AirborneMinSeparation  = 120.0;
-        private const double FinalMinSeparation     = 180.0;  // tighter on final
+        private const double FinalMinSeparation     = 180.0;
+        private const double GroundMinSeparation    = 30.0; 
 
-        // ── Go-around cascade window (sim milliseconds) ───────────────────────
         private const double CascadeWindowMs   = 5 * 60_000;
         private const int    CascadeThreshold  = 3;
 
-        // ── State ─────────────────────────────────────────────────────────────
-
-        // Tracks which conflict pairs we've already reported so we don't
-        // spam the alert log every tick (suppress for 30 sim-seconds after report)
         private readonly Dictionary<string, double> _suppressedPairs  = new();
         private const double SuppressForMs = 30_000;
 
-        // Ring buffer of go-around sim-times for cascade detection
         private readonly Queue<double> _recentGoArounds = new();
 
-        // Set of flight IDs we've already reported a cascade for this window
         private bool _cascadeReported = false;
         private double _lastCascadeResetMs = 0;
 
         public readonly List<string> PendingAlerts = new();
 
-        // ── Main check — called every engine tick ─────────────────────────────
+        // NEW: Track persistent score penalties
+        public int TotalConflicts { get; private set; }
 
         public void Check(IReadOnlyList<AircraftState> aircraft,
                           double simNowMs,
@@ -55,21 +36,17 @@ namespace AirportSim.Server.Simulation
             TickSuppression(simDeltaMs);
             CheckSeparation(aircraft, simNowMs);
             CheckRunwayIncursion(aircraft, simNowMs);
+            CheckGroundConflicts(aircraft, simNowMs); 
             CheckGoAroundCascade(aircraft, simNowMs, simDeltaMs);
         }
 
-        // ── Called by SimulationEngine when a go-around just happened ─────────
         public void RecordGoAround(double simNowMs)
         {
             _recentGoArounds.Enqueue(simNowMs);
         }
 
-        // ── Separation ────────────────────────────────────────────────────────
-
-        private void CheckSeparation(IReadOnlyList<AircraftState> aircraft,
-                                     double simNowMs)
+        private void CheckSeparation(IReadOnlyList<AircraftState> aircraft, double simNowMs)
         {
-            // Only check airborne arrivals — approaching / on-final / go-around
             var airborne = aircraft
                 .Where(a => a.FlightType == FlightType.Arrival &&
                             a.Phase is AircraftPhase.Approaching
@@ -85,12 +62,8 @@ namespace AirportSim.Server.Simulation
 
                 double dist = Distance(a.Position, b.Position);
 
-                // Use tighter separation on final approach
-                bool onFinal = a.Phase == AircraftPhase.OnFinal ||
-                               b.Phase == AircraftPhase.OnFinal;
-                double threshold = onFinal
-                    ? FinalMinSeparation
-                    : AirborneMinSeparation;
+                bool onFinal = a.Phase == AircraftPhase.OnFinal || b.Phase == AircraftPhase.OnFinal;
+                double threshold = onFinal ? FinalMinSeparation : AirborneMinSeparation;
 
                 if (dist < threshold)
                 {
@@ -98,18 +71,15 @@ namespace AirportSim.Server.Simulation
                     if (!_suppressedPairs.ContainsKey(pairKey))
                     {
                         string severity = dist < threshold * 0.5 ? "🔴 COLLISION ALERT" : "🟡 SEPARATION";
-                        PendingAlerts.Add(
-                            $"{severity}: {a.FlightId} / {b.FlightId} " +
-                            $"— {dist:F0} wu ({(onFinal ? "final" : "approach")})");
+                        PendingAlerts.Add($"{severity}: {a.FlightId} / {b.FlightId} — {dist:F0} wu ({(onFinal ? "final" : "approach")})");
                         _suppressedPairs[pairKey] = SuppressForMs;
+                        TotalConflicts++; // NEW
                     }
                 }
             }
 
-            // Also check arriving vs departing aircraft in the climb/approach zone
             var departing = aircraft
-                .Where(a => a.FlightType == FlightType.Departure &&
-                            a.Phase is AircraftPhase.Climbing)
+                .Where(a => a.FlightType == FlightType.Departure && a.Phase is AircraftPhase.Climbing)
                 .ToList();
 
             foreach (var arr in airborne)
@@ -118,27 +88,17 @@ namespace AirportSim.Server.Simulation
                 double dist    = Distance(arr.Position, dep.Position);
                 string pairKey = PairKey(arr.FlightId, dep.FlightId);
 
-                if (dist < AirborneMinSeparation &&
-                    !_suppressedPairs.ContainsKey(pairKey))
+                if (dist < AirborneMinSeparation && !_suppressedPairs.ContainsKey(pairKey))
                 {
-                    PendingAlerts.Add(
-                        $"🟡 SEPARATION: {arr.FlightId} (ARR) / {dep.FlightId} (DEP) " +
-                        $"— {dist:F0} wu");
+                    PendingAlerts.Add($"🟡 SEPARATION: {arr.FlightId} (ARR) / {dep.FlightId} (DEP) — {dist:F0} wu");
                     _suppressedPairs[pairKey] = SuppressForMs;
+                    TotalConflicts++; // NEW
                 }
             }
         }
 
-        // ── Runway incursion ──────────────────────────────────────────────────
-
-        private void CheckRunwayIncursion(IReadOnlyList<AircraftState> aircraft,
-                                          double simNowMs)
+        private void CheckRunwayIncursion(IReadOnlyList<AircraftState> aircraft, double simNowMs)
         {
-            // An incursion occurs when a departure begins its takeoff roll
-            // (phase == Takeoff) while an arrival is still rolling out
-            // (phase == Landing or Rollout).  The two runways are separate
-            // in Step 1, but the taxiway crossing zone is shared.
-
             bool anyLanding = aircraft.Any(
                 a => a.FlightType == FlightType.Arrival &&
                      a.Phase is AircraftPhase.Landing or AircraftPhase.Rollout);
@@ -146,27 +106,49 @@ namespace AirportSim.Server.Simulation
             bool anyTakingOff = aircraft.Any(
                 a => a.FlightType == FlightType.Departure &&
                      a.Phase == AircraftPhase.Takeoff &&
-                     a.PhaseProgress < 0.15);   // just started the roll
+                     a.PhaseProgress < 0.15);
 
             if (anyLanding && anyTakingOff)
             {
                 const string key = "runway_incursion";
                 if (!_suppressedPairs.ContainsKey(key))
                 {
-                    PendingAlerts.Add(
-                        "🔴 RUNWAY INCURSION: departure rolling while arrival on runway!");
+                    PendingAlerts.Add("🔴 RUNWAY INCURSION: departure rolling while arrival on runway!");
                     _suppressedPairs[key] = SuppressForMs;
+                    TotalConflicts += 3; // NEW: Heavy penalty for incursions
                 }
             }
         }
 
-        // ── Go-around cascade ─────────────────────────────────────────────────
-
-        private void CheckGoAroundCascade(IReadOnlyList<AircraftState> aircraft,
-                                          double simNowMs,
-                                          double simDeltaMs)
+        private void CheckGroundConflicts(IReadOnlyList<AircraftState> aircraft, double simNowMs)
         {
-            // Reset cascade window every CascadeWindowMs
+            var groundTraffic = aircraft
+                .Where(a => a.Phase is AircraftPhase.Taxiing or AircraftPhase.Pushback)
+                .ToList();
+
+            for (int i = 0; i < groundTraffic.Count; i++)
+            for (int j = i + 1; j < groundTraffic.Count; j++)
+            {
+                var a = groundTraffic[i];
+                var b = groundTraffic[j];
+
+                double dist = Distance(a.Position, b.Position);
+
+                if (dist < GroundMinSeparation)
+                {
+                    string pairKey = PairKey(a.FlightId, b.FlightId);
+                    if (!_suppressedPairs.ContainsKey(pairKey))
+                    {
+                        PendingAlerts.Add($"🟠 TAXIWAY CONFLICT: {a.FlightId} and {b.FlightId} are dangerously close ({dist:F0} wu)!");
+                        _suppressedPairs[pairKey] = SuppressForMs;
+                        TotalConflicts++; // NEW
+                    }
+                }
+            }
+        }
+
+        private void CheckGoAroundCascade(IReadOnlyList<AircraftState> aircraft, double simNowMs, double simDeltaMs)
+        {
             if (simNowMs - _lastCascadeResetMs > CascadeWindowMs)
             {
                 _recentGoArounds.Clear();
@@ -174,22 +156,15 @@ namespace AirportSim.Server.Simulation
                 _lastCascadeResetMs   = simNowMs;
             }
 
-            // Prune entries older than the window
-            while (_recentGoArounds.Count > 0 &&
-                   simNowMs - _recentGoArounds.Peek() > CascadeWindowMs)
+            while (_recentGoArounds.Count > 0 && simNowMs - _recentGoArounds.Peek() > CascadeWindowMs)
                 _recentGoArounds.Dequeue();
 
-            if (!_cascadeReported &&
-                _recentGoArounds.Count >= CascadeThreshold)
+            if (!_cascadeReported && _recentGoArounds.Count >= CascadeThreshold)
             {
-                PendingAlerts.Add(
-                    $"⚠ GO-AROUND CASCADE: {_recentGoArounds.Count} go-arounds " +
-                    $"in last 5 sim-minutes — possible approach congestion");
+                PendingAlerts.Add($"⚠ GO-AROUND CASCADE: {_recentGoArounds.Count} go-arounds in last 5 sim-minutes — possible approach congestion");
                 _cascadeReported = true;
             }
         }
-
-        // ── Suppression ticker ────────────────────────────────────────────────
 
         private void TickSuppression(double simDeltaMs)
         {
@@ -197,14 +172,10 @@ namespace AirportSim.Server.Simulation
             foreach (var kv in _suppressedPairs)
             {
                 _suppressedPairs[kv.Key] -= simDeltaMs;
-                if (_suppressedPairs[kv.Key] <= 0)
-                    expired.Add(kv.Key);
+                if (_suppressedPairs[kv.Key] <= 0) expired.Add(kv.Key);
             }
-            foreach (var k in expired)
-                _suppressedPairs.Remove(k);
+            foreach (var k in expired) _suppressedPairs.Remove(k);
         }
-
-        // ── Helpers ───────────────────────────────────────────────────────────
 
         private static double Distance(SimPoint a, SimPoint b)
         {
@@ -214,8 +185,6 @@ namespace AirportSim.Server.Simulation
         }
 
         private static string PairKey(string a, string b) =>
-            string.Compare(a, b, StringComparison.Ordinal) < 0
-                ? $"{a}|{b}"
-                : $"{b}|{a}";
+            string.Compare(a, b, StringComparison.Ordinal) < 0 ? $"{a}|{b}" : $"{b}|{a}";
     }
 }
