@@ -6,113 +6,206 @@
     <Application.Styles>
         <FluentTheme />
 
-        <!-- ── Button Hover & Press Animations ────────────────────────────────────── -->
+        <!-- ── Global Monospace Font ──────────────────────────────────────────── -->
+        <Style Selector="TextBlock">
+            <Setter Property="FontFamily" Value="Consolas,Courier New,monospace" />
+        </Style>
+
+        <!-- ── Button Base: smooth scale + bg/border transitions ─────────────── -->
         <Style Selector="Button">
             <Setter Property="RenderTransform" Value="scale(1)" />
+            <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Transitions">
                 <Transitions>
                     <TransformOperationsTransition Property="RenderTransform" Duration="0:0:0.1" />
-                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                    <BrushTransition Property="Background"  Duration="0:0:0.15" />
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.15" />
                 </Transitions>
             </Setter>
         </Style>
-        
         <Style Selector="Button:pointerover">
             <Setter Property="RenderTransform" Value="scale(1.03)" />
-            <Setter Property="Cursor" Value="Hand" />
         </Style>
-
         <Style Selector="Button:pressed">
             <Setter Property="RenderTransform" Value="scale(0.96)" />
         </Style>
 
-        <!-- ── Custom Modern ScrollBar ────────────────────────────────────────────── -->
+        <!-- ── ComboBox ───────────────────────────────────────────────────────── -->
+        <Style Selector="ComboBox">
+            <Setter Property="Foreground"      Value="{DynamicResource AtcText}" />
+            <Setter Property="Background"      Value="{DynamicResource AtcSurface2}" />
+            <Setter Property="BorderBrush"     Value="{DynamicResource AtcBorderLine}" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="ComboBox:pointerover /template/ Border#Background">
+            <Setter Property="Background"  Value="{DynamicResource AtcSurface3}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource AtcPrimaryDim}" />
+        </Style>
+        <Style Selector="ComboBox:focus /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="{DynamicResource AtcPrimary}" />
+        </Style>
+        <Style Selector="ComboBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AtcPrimaryDim}" />
+        </Style>
+
+        <!-- ── Slider ─────────────────────────────────────────────────────────── -->
+        <Style Selector="Slider /template/ Track Border">
+            <Setter Property="CornerRadius" Value="2" />
+            <Setter Property="Background"   Value="{DynamicResource AtcSurface3}" />
+        </Style>
+        <Style Selector="Slider /template/ Thumb">
+            <Setter Property="Width"           Value="14" />
+            <Setter Property="Height"          Value="14" />
+            <Setter Property="Background"      Value="{DynamicResource AtcPrimary}" />
+            <Setter Property="CornerRadius"    Value="7" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor"          Value="Hand" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.1" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="Slider /template/ Thumb:pointerover">
+            <Setter Property="Background" Value="{DynamicResource AtcPrimaryGlow}" />
+        </Style>
+
+        <!-- ── Thin glowing ScrollBars ───────────────────────────────────────── -->
         <Style Selector="ScrollBar:vertical">
-            <Setter Property="Width" Value="8" />
+            <Setter Property="Width" Value="5" />
         </Style>
         <Style Selector="ScrollBar:horizontal">
-            <Setter Property="Height" Value="8" />
+            <Setter Property="Height" Value="5" />
         </Style>
-        
         <Style Selector="ScrollBar /template/ Thumb">
-            <Setter Property="Background" Value="{DynamicResource AtcTextMuted}" />
-            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Background"   Value="{DynamicResource AtcSurface3}" />
+            <Setter Property="CornerRadius" Value="3" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
         </Style>
         <Style Selector="ScrollBar:pointerover /template/ Thumb">
-            <Setter Property="Background" Value="{DynamicResource AtcPrimary}" />
+            <Setter Property="Background" Value="{DynamicResource AtcPrimaryDim}" />
         </Style>
+
+        <!-- ── ToolTip ────────────────────────────────────────────────────────── -->
+        <Style Selector="ToolTip">
+            <Setter Property="Background"      Value="{DynamicResource AtcSurface2}" />
+            <Setter Property="Foreground"      Value="{DynamicResource AtcText}" />
+            <Setter Property="BorderBrush"     Value="{DynamicResource AtcBorderLine}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius"    Value="4" />
+            <Setter Property="Padding"         Value="8,5" />
+            <Setter Property="FontSize"        Value="11" />
+        </Style>
+
     </Application.Styles>
 
-    <!-- ═══════════════════════════════════════════════════════════════════
-         ATC TERMINAL — GLOBAL DESIGN SYSTEM  (v2 — final)
-    ═══════════════════════════════════════════════════════════════════ -->
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         ATC TERMINAL — GLOBAL DESIGN SYSTEM  (v3 — upgraded)
+    ═══════════════════════════════════════════════════════════════════════ -->
     <Application.Resources>
 
-        <!-- ── Base backgrounds ──────────────────────────────────────── -->
-        <SolidColorBrush x:Key="AtcBackground">#080B10</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcSidebar">#0D1119</SolidColorBrush>
+        <!-- ── Base backgrounds ──────────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcBackground">#05080D</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSidebar">#080C14</SolidColorBrush>
 
-        <!-- ── Surface hierarchy ─────────────────────────────────────── -->
-        <SolidColorBrush x:Key="AtcSurface0">#070A0F</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcSurface1">#111620</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcSurface2">#151B27</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcSurface3">#1C2535</SolidColorBrush>
+        <!-- ── Surface hierarchy (each tier +10% luminance) ─────────────────── -->
+        <SolidColorBrush x:Key="AtcSurface0">#050810</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSurface1">#0C1220</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSurface2">#111928</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSurface3">#182234</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSurface4">#1F2C42</SolidColorBrush>
 
-        <!-- ── Glass overlays ────────────────────────────────────────── -->
-        <SolidColorBrush x:Key="AtcGlass">#E0111620</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcGlassLight">#BB151B27</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcGlassDark">#CC070A0F</SolidColorBrush>
+        <!-- ── Glass overlays ────────────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcGlass">#E60C1220</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcGlassLight">#CC111928</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcGlassDark">#F0050810</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcGlassCyan">#1400E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcGlassAmber">#14FFB020</SolidColorBrush>
 
-        <!-- ── Brand colours ─────────────────────────────────────────── -->
-        <SolidColorBrush x:Key="AtcPrimary">#00D9F5</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcPrimaryDim">#1A4A5A</SolidColorBrush>
+        <!-- ── Primary: phosphor cyan ────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcPrimary">#00E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcPrimaryDim">#12394D</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcPrimaryGlow">#80E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcPrimaryFaint">#0800E5FF</SolidColorBrush>
+
+        <!-- ── Accent: amber ─────────────────────────────────────────────────── -->
         <SolidColorBrush x:Key="AtcAccent">#FFB020</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcAccentDim">#2E1F04</SolidColorBrush>
         <SolidColorBrush x:Key="AtcAccentGlow">#FFCC60</SolidColorBrush>
 
-        <!-- ── Text colours ──────────────────────────────────────────── -->
-        <SolidColorBrush x:Key="AtcText">#E8EDF5</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcTextSub">#A0AEBF</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcTextMuted">#5A6A7A</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcTextDisabled">#2E3A4A</SolidColorBrush>
+        <!-- ── Success: phosphor green ───────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcSuccess">#00E676</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSuccessDim">#062B14</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcSuccessGlow">#60E676</SolidColorBrush>
 
-        <!-- ── Border colours ────────────────────────────────────────── -->
-        <SolidColorBrush x:Key="AtcBorderSubtle">#14FFFFFF</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcBorderLine">#28FFFFFF</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcBorderStrong">#4400D9F5</SolidColorBrush>
+        <!-- ── Text colours (4-tier) ─────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcText">#EAF0FA</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcTextSub">#90A8C0</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcTextMuted">#445566</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcTextDisabled">#202C3A</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcTextData">#C8E0F0</SolidColorBrush>
 
-        <!-- ── Status colours ────────────────────────────────────────── -->
-        <SolidColorBrush x:Key="AtcSuccess">#22C55E</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcSuccessDim">#0D2B1A</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcWarning">#F59E0B</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcWarningDim">#2A1E06</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcDanger">#EF4444</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcDangerDim">#2D0A0A</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcInfo">#3B82F6</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcInfoDim">#0A1630</SolidColorBrush>
+        <!-- ── Border colours (4-tier + glow) ───────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcBorderFaint">#0AFFFFFF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcBorderSubtle">#18FFFFFF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcBorderLine">#2AFFFFFF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcBorderStrong">#5000E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcBorderGlow">#9000E5FF</SolidColorBrush>
 
-        <!-- ── Runway colours ────────────────────────────────────────── -->
-        <SolidColorBrush x:Key="AtcRunwayArrival">#22C55E</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcRunwayDeparture">#00D9F5</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcRunwayOccupied">#EF4444</SolidColorBrush>
+        <!-- ── Warning ───────────────────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcWarning">#FFAB00</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcWarningDim">#271A00</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcWarningGlow">#FFCC44</SolidColorBrush>
 
-        <!-- ── Chart colours ─────────────────────────────────────────── -->
-        <SolidColorBrush x:Key="AtcGraphLine">#DC00D9F5</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcGraphFill">#2800D9F5</SolidColorBrush>
-        
-        <!-- ── Radar Specific Additions ──────────────────────────────── -->
-        <SolidColorBrush x:Key="AtcRadarGrid">#1A00D9F5</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcRadarSweep">#3300D9F5</SolidColorBrush>
-        <SolidColorBrush x:Key="AtcFlightPath">#8800D9F5</SolidColorBrush>
+        <!-- ── Danger ────────────────────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcDanger">#FF3D3D</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcDangerDim">#2D0606</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcDangerGlow">#FF7070</SolidColorBrush>
 
-        <!-- ── Aircraft & UI Geometries ──────────────────────────────── -->
-        <!-- Standard Commercial Jet (Top-Down) -->
+        <!-- ── Info ──────────────────────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcInfo">#4D9FFF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcInfoDim">#081630</SolidColorBrush>
+
+        <!-- ── Runway-specific ───────────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcRunwayArrival">#00E676</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcRunwayDeparture">#00E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcRunwayOccupied">#FF3D3D</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcRunwayClear">#445566</SolidColorBrush>
+
+        <!-- ── Chart / Graph ─────────────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcGraphLine">#E000E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcGraphFill">#2200E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcGraphLineAlt">#E0FFB020</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcGraphFillAlt">#1AFFB020</SolidColorBrush>
+
+        <!-- ── Radar-specific ────────────────────────────────────────────────── -->
+        <SolidColorBrush x:Key="AtcRadarGrid">#1400E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcRadarRing">#0C00E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcRadarSweep">#3000E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcFlightPath">#9000E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcScanline">#06000010</SolidColorBrush>
+
+        <!-- ── Sidebar accent stripe colours (per nav section) ──────────────── -->
+        <SolidColorBrush x:Key="AtcStripeRadar">#00E5FF</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcStripeQueue">#00E676</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcStripeAlerts">#FF3D3D</SolidColorBrush>
+        <SolidColorBrush x:Key="AtcStripeDashboard">#FFB020</SolidColorBrush>
+
+        <!-- ── Sizing / spacing tokens ───────────────────────────────────────── -->
+        <x:Double  x:Key="AtcPanelRadius">10</x:Double>
+        <x:Double  x:Key="AtcChipRadius">5</x:Double>
+        <x:Double  x:Key="AtcSidebarWidth">264</x:Double>
+        <Thickness x:Key="AtcPanelPadding">14,12</Thickness>
+
+        <!-- ── Vector geometries ─────────────────────────────────────────────── -->
         <StreamGeometry x:Key="AtcIconPlane">M21,16v-2l-8-5V3.5c0-0.83-0.67-1.5-1.5-1.5S10,2.67,10,3.5V9l-8,5v2l8-2.5V19l-2,1.5V22l3.5-1l3.5,1v-1.5L13,19v-5.5L21,16z</StreamGeometry>
-        
-        <!-- Emergency Alert Triangle -->
         <StreamGeometry x:Key="AtcIconAlert">M12,2L1,21H23M12,6L19.53,19H4.47M11,10V14H13V10M11,16V18H13V16</StreamGeometry>
-        
-        <!-- Target Reticle (Useful for Radar Selection) -->
         <StreamGeometry x:Key="AtcIconReticle">M12,2V4M12,20V22M2,12H4M20,12H22M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6Z</StreamGeometry>
+        <StreamGeometry x:Key="AtcIconChevron">M9,5L16,12L9,19</StreamGeometry>
 
     </Application.Resources>
 </Application>

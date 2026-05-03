@@ -14,83 +14,333 @@
         ExtendClientAreaTitleBarHeightHint="40">
 
     <Grid>
-        <!-- Main Application Layout -->
-        <Grid RowDefinitions="40, *">
-            <!-- Custom Title Bar (HitTestVisible=False allows OS dragging) -->
-            <Grid Grid.Row="0" Background="{DynamicResource AtcSidebar}" IsHitTestVisible="False">
-                <TextBlock Text="✈ ATC TERMINAL DASHBOARD" 
-                           Foreground="{DynamicResource AtcPrimary}" 
-                           FontWeight="Bold" 
-                           VerticalAlignment="Center" 
-                           Margin="16,0,0,0"
-                           LetterSpacing="1.5"/>
-            </Grid>
-            
-            <!-- Your Simulation View -->
+
+        <!-- ═══════════════════════════════════════════════════════════════
+             MAIN APPLICATION SHELL (title bar + sim view)
+        ═══════════════════════════════════════════════════════════════ -->
+        <Grid RowDefinitions="40,*">
+
+            <!-- ── Custom Title Bar ──────────────────────────────────── -->
+            <Border Grid.Row="0"
+                    Background="{DynamicResource AtcSidebar}"
+                    BorderBrush="{DynamicResource AtcBorderSubtle}"
+                    BorderThickness="0,0,0,1"
+                    IsHitTestVisible="False">
+                <Grid ColumnDefinitions="*,Auto" Margin="16,0,16,0">
+
+                    <!-- Left: logo + title -->
+                    <StackPanel Grid.Column="0"
+                                Orientation="Horizontal" Spacing="10"
+                                VerticalAlignment="Center">
+                        <!-- Animated pulsing dot -->
+                        <Border Width="8" Height="8" CornerRadius="4"
+                                Background="{DynamicResource AtcPrimary}"
+                                VerticalAlignment="Center">
+                            <Border.Styles>
+                                <Style Selector="Border">
+                                    <Style.Animations>
+                                        <Animation Duration="0:0:2" IterationCount="Infinite" PlaybackDirection="Alternate">
+                                            <KeyFrame Cue="0%">  <Setter Property="Opacity" Value="1.0"/></KeyFrame>
+                                            <KeyFrame Cue="50%"> <Setter Property="Opacity" Value="0.2"/></KeyFrame>
+                                            <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1.0"/></KeyFrame>
+                                        </Animation>
+                                    </Style.Animations>
+                                </Style>
+                            </Border.Styles>
+                        </Border>
+                        <TextBlock Text="ATC TERMINAL"
+                                   FontSize="13" FontWeight="Black"
+                                   Foreground="{DynamicResource AtcPrimary}"
+                                   LetterSpacing="3"
+                                   VerticalAlignment="Center"/>
+                        <Border Width="1" Height="14"
+                                Background="{DynamicResource AtcBorderLine}"
+                                VerticalAlignment="Center"/>
+                        <TextBlock Text="RADAR SIMULATION SYSTEM"
+                                   FontSize="10" FontWeight="Bold"
+                                   Foreground="{DynamicResource AtcTextMuted}"
+                                   LetterSpacing="2"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Right: clock + server status -->
+                    <StackPanel Grid.Column="1"
+                                Orientation="Horizontal" Spacing="16"
+                                VerticalAlignment="Center">
+                        <TextBlock x:Name="TitleBarClock"
+                                   FontSize="12" FontWeight="Bold"
+                                   Foreground="{DynamicResource AtcTextSub}"
+                                   LetterSpacing="1"
+                                   VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                            <TextBlock Text="SRV"
+                                       FontSize="9" FontWeight="Bold"
+                                       Foreground="{DynamicResource AtcTextMuted}"
+                                       LetterSpacing="1.5"
+                                       VerticalAlignment="Center"/>
+                            <Border x:Name="TitleBarConnectionDot"
+                                    Width="7" Height="7" CornerRadius="4"
+                                    Background="{DynamicResource AtcTextMuted}"
+                                    VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                </Grid>
+            </Border>
+
+            <!-- ── Simulation View ───────────────────────────────────── -->
             <views:SimulationView x:Name="MainSimView" Grid.Row="1" />
+
         </Grid>
 
-        <!-- Startup Splash Screen Overlay -->
-        <Border x:Name="SplashOverlay" Background="{DynamicResource AtcBackground}" ZIndex="999">
-            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="24">
-                
-                <TextBlock Text="✈" FontSize="72" Foreground="{DynamicResource AtcPrimary}" HorizontalAlignment="Center">
-                    <TextBlock.Styles>
-                        <!-- Simple pulsing animation for the splash icon -->
-                        <Style Selector="TextBlock">
-                            <Style.Animations>
-                                <Animation Duration="0:0:1" IterationCount="Infinite" PlaybackDirection="Alternate">
-                                    <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.4"/></KeyFrame>
-                                    <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1.0"/></KeyFrame>
-                                </Animation>
-                            </Style.Animations>
-                        </Style>
-                    </TextBlock.Styles>
-                </TextBlock>
+        <!-- ═══════════════════════════════════════════════════════════════
+             SPLASH SCREEN OVERLAY
+        ═══════════════════════════════════════════════════════════════ -->
+        <Border x:Name="SplashOverlay"
+                Background="{DynamicResource AtcBackground}"
+                ZIndex="999">
+            <Grid>
 
-                <TextBlock Text="ATC TERMINAL SETUP" 
-                           FontSize="22" FontWeight="Black"
-                           Foreground="{DynamicResource AtcText}" 
-                           HorizontalAlignment="Center"
-                           LetterSpacing="3"/>
+                <!-- Radial background glow -->
+                <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Width="700" Height="700" CornerRadius="350" Opacity="0.06">
+                    <Border.Background>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#00E5FF" Offset="0"/>
+                            <GradientStop Color="Transparent" Offset="1"/>
+                        </RadialGradientBrush>
+                    </Border.Background>
+                </Border>
 
-                <!-- Airport Layout Selector -->
-                <StackPanel Spacing="8" Margin="0,12,0,0">
-                    <TextBlock Text="SELECT AIRPORT LAYOUT"
-                               FontSize="10" FontWeight="Bold"
-                               Foreground="{DynamicResource AtcTextMuted}"
-                               LetterSpacing="1.5"
-                               HorizontalAlignment="Center"/>
-                    <ComboBox x:Name="AirportSelector"
-                              Width="280"
-                              SelectedIndex="0"
-                              Background="{DynamicResource AtcSurface1}"
-                              Foreground="{DynamicResource AtcText}"
-                              BorderBrush="{DynamicResource AtcBorderLine}"
-                              BorderThickness="1"
-                              CornerRadius="6"
-                              HorizontalAlignment="Center">
-                        <ComboBoxItem Content="TLV — Ben Gurion (Default)"/>
-                        <ComboBoxItem Content="LHR — London Heathrow"/>
-                        <ComboBoxItem Content="JFK — John F. Kennedy"/>
-                    </ComboBox>
-                </StackPanel>
+                <!-- Radar ring decorations -->
+                <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Width="440" Height="440" CornerRadius="220"
+                        BorderThickness="1" Opacity="0.08"
+                        BorderBrush="{DynamicResource AtcPrimary}"/>
+                <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Width="320" Height="320" CornerRadius="160"
+                        BorderThickness="1" Opacity="0.12"
+                        BorderBrush="{DynamicResource AtcPrimary}"/>
+                <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Width="200" Height="200" CornerRadius="100"
+                        BorderThickness="1" Opacity="0.18"
+                        BorderBrush="{DynamicResource AtcPrimary}"/>
 
-                <Button x:Name="StartSimButton"
-                        Content="CONNECT TO RADAR"
-                        Click="StartSim_Click"
-                        Background="{DynamicResource AtcPrimary}"
-                        Foreground="{DynamicResource AtcBackground}"
-                        FontWeight="Bold"
-                        FontSize="14"
-                        Padding="0,14"
-                        Width="280"
-                        HorizontalContentAlignment="Center"
-                        CornerRadius="6"
-                        Margin="0,16,0,0"/>
+                <!-- Center content card -->
+                <Border HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Width="380"
+                        Background="{DynamicResource AtcSurface1}"
+                        BorderBrush="{DynamicResource AtcBorderStrong}"
+                        BorderThickness="1"
+                        CornerRadius="16"
+                        Padding="36,32,36,36">
+                    <StackPanel Spacing="0">
 
-            </StackPanel>
+                        <!-- Logo mark -->
+                        <StackPanel HorizontalAlignment="Center" Spacing="6" Margin="0,0,0,28">
+                            <TextBlock Text="✈"
+                                       FontSize="52"
+                                       Foreground="{DynamicResource AtcPrimary}"
+                                       HorizontalAlignment="Center">
+                                <TextBlock.Styles>
+                                    <Style Selector="TextBlock">
+                                        <Style.Animations>
+                                            <Animation Duration="0:0:2.4" IterationCount="Infinite" PlaybackDirection="Alternate">
+                                                <KeyFrame Cue="0%">  <Setter Property="Opacity" Value="1.0"/></KeyFrame>
+                                                <KeyFrame Cue="60%"> <Setter Property="Opacity" Value="0.35"/></KeyFrame>
+                                                <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1.0"/></KeyFrame>
+                                            </Animation>
+                                        </Style.Animations>
+                                    </Style>
+                                </TextBlock.Styles>
+                            </TextBlock>
+                            <TextBlock Text="ATC TERMINAL"
+                                       FontSize="24" FontWeight="Black"
+                                       Foreground="{DynamicResource AtcText}"
+                                       HorizontalAlignment="Center"
+                                       LetterSpacing="5"/>
+                            <TextBlock Text="RADAR SIMULATION SYSTEM"
+                                       FontSize="10" FontWeight="Bold"
+                                       Foreground="{DynamicResource AtcTextMuted}"
+                                       HorizontalAlignment="Center"
+                                       LetterSpacing="3"/>
+                        </StackPanel>
+
+                        <!-- Divider -->
+                        <Border Height="1"
+                                Background="{DynamicResource AtcBorderSubtle}"
+                                Margin="0,0,0,24"/>
+
+                        <!-- Airport selector label -->
+                        <TextBlock Text="SELECT AIRPORT"
+                                   FontSize="9" FontWeight="Bold"
+                                   Foreground="{DynamicResource AtcTextMuted}"
+                                   LetterSpacing="2.5"
+                                   Margin="0,0,0,12"/>
+
+                        <!-- Airport cards -->
+                        <StackPanel Spacing="8" Margin="0,0,0,24">
+
+                            <!-- TLV — pre-selected -->
+                            <Border x:Name="CardTLV"
+                                    Background="{DynamicResource AtcPrimaryDim}"
+                                    BorderBrush="{DynamicResource AtcPrimary}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="14,11"
+                                    Cursor="Hand">
+                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                    <StackPanel Grid.Column="0" Spacing="1">
+                                        <TextBlock Text="TLV"
+                                                   FontSize="20" FontWeight="Black"
+                                                   Foreground="{DynamicResource AtcPrimary}"
+                                                   LetterSpacing="2"/>
+                                        <TextBlock Text="BEN GURION"
+                                                   FontSize="8" FontWeight="Bold"
+                                                   Foreground="{DynamicResource AtcTextMuted}"
+                                                   LetterSpacing="1.5"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Text="Tel Aviv, Israel"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource AtcTextSub}"
+                                               VerticalAlignment="Center"
+                                               Margin="14,0,0,0"/>
+                                    <Border Grid.Column="2"
+                                            Width="18" Height="18" CornerRadius="9"
+                                            Background="{DynamicResource AtcPrimary}"
+                                            VerticalAlignment="Center">
+                                        <TextBlock Text="✓"
+                                                   FontSize="10" FontWeight="Bold"
+                                                   Foreground="{DynamicResource AtcBackground}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"/>
+                                    </Border>
+                                </Grid>
+                            </Border>
+
+                            <!-- LHR -->
+                            <Border x:Name="CardLHR"
+                                    Background="{DynamicResource AtcSurface2}"
+                                    BorderBrush="{DynamicResource AtcBorderLine}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="14,11"
+                                    Cursor="Hand">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <StackPanel Grid.Column="0" Spacing="1">
+                                        <TextBlock Text="LHR"
+                                                   FontSize="20" FontWeight="Black"
+                                                   Foreground="{DynamicResource AtcTextSub}"
+                                                   LetterSpacing="2"/>
+                                        <TextBlock Text="HEATHROW"
+                                                   FontSize="8" FontWeight="Bold"
+                                                   Foreground="{DynamicResource AtcTextMuted}"
+                                                   LetterSpacing="1.5"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Text="London, United Kingdom"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource AtcTextMuted}"
+                                               VerticalAlignment="Center"
+                                               Margin="14,0,0,0"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- JFK -->
+                            <Border x:Name="CardJFK"
+                                    Background="{DynamicResource AtcSurface2}"
+                                    BorderBrush="{DynamicResource AtcBorderLine}"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    Padding="14,11"
+                                    Cursor="Hand">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <StackPanel Grid.Column="0" Spacing="1">
+                                        <TextBlock Text="JFK"
+                                                   FontSize="20" FontWeight="Black"
+                                                   Foreground="{DynamicResource AtcTextSub}"
+                                                   LetterSpacing="2"/>
+                                        <TextBlock Text="JOHN F. KENNEDY"
+                                                   FontSize="8" FontWeight="Bold"
+                                                   Foreground="{DynamicResource AtcTextMuted}"
+                                                   LetterSpacing="1.5"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1"
+                                               Text="New York, United States"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource AtcTextMuted}"
+                                               VerticalAlignment="Center"
+                                               Margin="14,0,0,0"/>
+                                </Grid>
+                            </Border>
+
+                        </StackPanel>
+
+                        <!-- Hidden ComboBox — preserved for code-behind compatibility -->
+                        <ComboBox x:Name="AirportSelector"
+                                  IsVisible="False"
+                                  SelectedIndex="0">
+                            <ComboBoxItem Content="TLV — Ben Gurion (Default)"/>
+                            <ComboBoxItem Content="LHR — London Heathrow"/>
+                            <ComboBoxItem Content="JFK — John F. Kennedy"/>
+                        </ComboBox>
+
+                        <!-- Connect button -->
+                        <Button x:Name="StartSimButton"
+                                Click="StartSim_Click"
+                                HorizontalAlignment="Stretch"
+                                HorizontalContentAlignment="Center"
+                                CornerRadius="8"
+                                Padding="0,15"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource AtcBorderStrong}"
+                                Background="{DynamicResource AtcPrimary}"
+                                Foreground="{DynamicResource AtcBackground}"
+                                FontWeight="Black"
+                                FontSize="13"
+                                LetterSpacing="2">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <TextBlock Text="◈" FontSize="14" VerticalAlignment="Center"/>
+                                <TextBlock Text="CONNECT TO RADAR"
+                                           FontSize="13" FontWeight="Black"
+                                           LetterSpacing="2"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Footer -->
+                        <StackPanel Orientation="Horizontal"
+                                    HorizontalAlignment="Center"
+                                    Spacing="6"
+                                    Margin="0,18,0,0">
+                            <TextBlock Text="v3.0"
+                                       FontSize="9"
+                                       Foreground="{DynamicResource AtcTextMuted}"
+                                       VerticalAlignment="Center"/>
+                            <Border Width="3" Height="3" CornerRadius="2"
+                                    Background="{DynamicResource AtcTextMuted}"
+                                    VerticalAlignment="Center"/>
+                            <TextBlock Text="SIMULATION MODE"
+                                       FontSize="9" FontWeight="Bold"
+                                       Foreground="{DynamicResource AtcTextMuted}"
+                                       LetterSpacing="1.5"
+                                       VerticalAlignment="Center"/>
+                            <Border Width="3" Height="3" CornerRadius="2"
+                                    Background="{DynamicResource AtcTextMuted}"
+                                    VerticalAlignment="Center"/>
+                            <TextBlock Text="LLBG / TLV"
+                                       FontSize="9"
+                                       Foreground="{DynamicResource AtcTextMuted}"
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                    </StackPanel>
+                </Border>
+
+            </Grid>
         </Border>
-    </Grid>
 
+    </Grid>
 </Window>
