@@ -1,28 +1,33 @@
-using AirportSim.Server.Hubs;
-using AirportSim.Server.Services;
-using AirportSim.Server.Simulation;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+using AirportSim.Server.Application.Commands;   // anchor for assembly scan
+using AirportSim.Server.Domain.Interfaces;
+using AirportSim.Server.Infrastructure.Hubs;
+using AirportSim.Server.Infrastructure.Services;
+using AirportSim.Server.Infrastructure.Simulation;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Services ──────────────────────────────────────────────────────────────────
+// ── MediatR — scans Application layer for all IRequestHandler<> registrations ─
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssemblyContaining<GrantClearanceCommand>());
 
+// ── SignalR ───────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR(options =>
 {
-    // NEW: increase max message size for large snapshots with many aircraft
-    options.MaximumReceiveMessageSize = 512 * 1024; // 512 KB
+    options.MaximumReceiveMessageSize = 512 * 1024;
 });
 
-// NEW: SimulationEngine registered as singleton so SimulationHub can inject it
+// ── Infrastructure: Broadcast ─────────────────────────────────────────────────
+builder.Services.AddSingleton<IBroadcastService, SignalRBroadcastService>();
+
+// ── Application: Simulation Engine ───────────────────────────────────────────
 builder.Services.AddSingleton<SimulationEngine>();
+builder.Services.AddSingleton<ISimulationService>(p => p.GetRequiredService<SimulationEngine>());
 builder.Services.AddHostedService(p => p.GetRequiredService<SimulationEngine>());
 
-// Diagnostic heartbeat service
+// ── Infrastructure: Diagnostic heartbeat ─────────────────────────────────────
 builder.Services.AddHostedService<BroadcastService>();
 
-// CORS for local dev — allow any origin with credentials (SignalR requirement)
+// ── CORS ──────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -33,13 +38,10 @@ builder.Services.AddCors(options =>
 });
 
 // ── Pipeline ──────────────────────────────────────────────────────────────────
-
 var app = builder.Build();
 
 app.UseCors();
 app.MapHub<SimulationHub>("/simhub");
-
-// NEW: minimal health endpoint — useful for load balancer checks
 app.MapGet("/health", () => Results.Ok(new { status = "running", time = DateTimeOffset.UtcNow }));
 
 app.Run();
