@@ -22,12 +22,10 @@ builder.Services.AddDbContextFactory<SimulationDbContext>(options =>
 builder.Services.AddSingleton<IFlightLogRepository, FlightLogRepository>();
 
 // ── Redis ─────────────────────────────────────────────────────────────────────
-// AddStackExchangeRedisCache wires IDistributedCache → Redis.
-// RedisCacheService wraps it behind ICacheService with graceful degradation.
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration         = builder.Configuration.GetConnectionString("Redis");
-    options.InstanceName          = "airportsim:";
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    options.InstanceName  = "airportsim:";
 });
 builder.Services.AddSingleton<ICacheService, RedisCacheService>();
 
@@ -40,10 +38,14 @@ builder.Services.AddSignalR(options =>
 // ── Infrastructure: Broadcast ─────────────────────────────────────────────────
 builder.Services.AddSingleton<IBroadcastService, SignalRBroadcastService>();
 
-// ── Application: Simulation Engine ───────────────────────────────────────────
+// ── Simulation Engine (pure state machine — not a BackgroundService anymore) ──
 builder.Services.AddSingleton<SimulationEngine>();
 builder.Services.AddSingleton<ISimulationService>(p => p.GetRequiredService<SimulationEngine>());
-builder.Services.AddHostedService(p => p.GetRequiredService<SimulationEngine>());
+
+// ── Background Services (three focused hosted services replace the monolith) ──
+builder.Services.AddHostedService<SimulationTickService>();
+builder.Services.AddHostedService<WeatherService>();
+builder.Services.AddHostedService<MetricsService>();
 
 // ── Infrastructure: Diagnostic heartbeat ─────────────────────────────────────
 builder.Services.AddHostedService<BroadcastService>();
@@ -61,7 +63,6 @@ builder.Services.AddCors(options =>
 // ── Pipeline ──────────────────────────────────────────────────────────────────
 var app = builder.Build();
 
-// Auto-apply EF migrations on startup
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider

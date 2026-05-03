@@ -1,8 +1,5 @@
-version: '3.9'
-
 services:
 
-  # ── PostgreSQL ──────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     container_name: airportsim-postgres
@@ -12,7 +9,7 @@ services:
       POSTGRES_USER:     airportsim
       POSTGRES_PASSWORD: airportsim_dev
     ports:
-      - "5432:5432"
+      - "5434:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -21,21 +18,19 @@ services:
       timeout: 5s
       retries: 10
 
-  # ── Redis ───────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: airportsim-redis
     restart: unless-stopped
     command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
 
-  # ── AirportSim API ──────────────────────────────────────────────────────────
   api:
     build:
       context: .
@@ -46,11 +41,8 @@ services:
       - "5000:5000"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      # Overrides appsettings.json — uses Docker service names as hostnames
-      ConnectionStrings__Postgres: >-
-        Host=postgres;Port=5432;Database=airportsim;
-        Username=airportsim;Password=airportsim_dev
-      ConnectionStrings__Redis: redis:6379
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=airportsim;Username=airportsim;Password=airportsim_dev"
+      ConnectionStrings__Redis: "redis:6379"
     depends_on:
       postgres:
         condition: service_healthy
